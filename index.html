@@ -123,7 +123,7 @@
   }
   .status-icons{display:flex; align-items:center; gap:5px;}
 
-  .scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; padding-bottom:34px;}
+  .scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; padding-bottom:50px;}
   .scroll-area::-webkit-scrollbar{display:none;}
 
   .top-nav{
@@ -1571,7 +1571,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!dots.length) return;
     autoplayTimer = setInterval(() => {
       setActive((activeIndex + 1) % dots.length);
-    }, 7000);
+    }, 9000);
   }
 
   const updatesScreen = document.getElementById("updatesScreen");
@@ -4770,7 +4770,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   function syncFixedBarOffsets(){
     if(scrollArea && topNav) scrollArea.style.paddingTop = topNav.offsetHeight + 'px';
-    if(scrollArea && bottomNav) scrollArea.style.paddingBottom = (bottomNav.offsetHeight + 20) + 'px';
+    if(scrollArea && bottomNav) scrollArea.style.paddingBottom = (bottomNav.offsetHeight + 12) + 'px';
   }
 
   syncFixedBarOffsets();

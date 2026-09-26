@@ -1224,9 +1224,9 @@ window.OBGH_DB = (function(){
     return data;
   }
   async function fetchPosts(){
-    const { data: posts, error } = await sb.from("posts").select("*, connect_profiles(name, username, avatar_url)").order("created_at", { ascending:false });
+    const { data: posts, error } = await sb.from("posts").select("*, connect_profiles!posts_author_id_fkey(name, username, avatar_url)").order("created_at", { ascending:false });
     if(error){ console.error("OBGH_DB.fetchPosts", error); return []; }
-    const { data: comments } = await sb.from("comments").select("*, connect_profiles(name, username, avatar_url)").order("created_at", { ascending:true });
+    const { data: comments } = await sb.from("comments").select("*, connect_profiles!comments_author_id_fkey(name, username, avatar_url)").order("created_at", { ascending:true });
     return (posts||[]).map(p=>({
       id:p.id, authorId:p.author_id,
       authorName:p.connect_profiles?.name||"Believer", authorUsername:p.connect_profiles?.username||"believer",
@@ -1263,6 +1263,11 @@ window.OBGH_DB = (function(){
     if(imageUrl!==undefined) row.image_url = imageUrl||null;
     const { error } = await sb.from("posts").update(row).eq("id", id);
     if(error){ console.error("OBGH_DB.updatePost", error); return false; }
+    return true;
+  }
+  async function deletePost({ id }){
+    const { error } = await sb.from("posts").delete().eq("id", id);
+    if(error){ console.error("OBGH_DB.deletePost", error); return false; }
     return true;
   }
   async function likePost({ postId, likerId }){
@@ -1415,7 +1420,7 @@ window.OBGH_DB = (function(){
   }
 
   return { sb, deviceId, fetchSongs, fetchUpdates, fetchNotifications, isRestricted, registerBeliever,
-    upsertConnectProfile, fetchPosts, createPost, createComment, submitReport, updatePost,
+    upsertConnectProfile, fetchPosts, createPost, createComment, submitReport, updatePost, deletePost,
     likePost, unlikePost, likeComment, unlikeComment, fetchMyLikes, follow, unfollow, fetchFollowing,
     fetchFollowers, fetchFollowingProfiles,
     touchPresence, fetchLastSeen, onPresenceChange, isOnline, currentOnlineIds, joinPresence, leavePresence,
@@ -4408,9 +4413,16 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       if(delBtn){
         const delId=delBtn.dataset.postSheetDelete;
         closePostActionSheet();
-        appConfirm("Delete Testimony","Delete this testimony? This cannot be undone.",()=>{
+        appConfirm("Delete Testimony","Delete this testimony? This cannot be undone.",async()=>{
+          // Delete on the server first — removing only the local copy left the
+          // row alive in Supabase, so the next sync (polling, reopen, another
+          // device) silently brought the "deleted" testimony back.
+          let ok=true;
+          if(isRealId(delId)) ok = await window.OBGH_DB.deletePost({ id: delId });
+          if(!ok){ toast("Couldn't delete your testimony — check your connection and try again."); return; }
           db.posts=(db.posts||[]).filter(x=>x.id!==delId);
           save(); renderWall();
+          toast("Testimony deleted");
         });
         return;
       }

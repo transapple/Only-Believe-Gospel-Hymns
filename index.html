@@ -1231,7 +1231,7 @@ window.OBGH_DB = (function(){
   async function fetchUpdates(){
     const { data, error } = await sb.from("updates").select("*").order("created_at", { ascending:false });
     if(error){ console.error("OBGH_DB.fetchUpdates", error); return []; }
-    return (data||[]).map(r=>({ id:r.id, num:r.num, text:r.text, image:r.image_url, ts:new Date(r.created_at).getTime() }));
+    return (data||[]).map(r=>({ id:r.id, num:r.num, title:r.title, text:r.text, image:r.image_url, ts:new Date(r.created_at).getTime() }));
   }
   async function fetchNotifications(){
     const { data, error } = await sb.from("notifications").select("*").order("ts", { ascending:false }).limit(30);
@@ -1590,7 +1590,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
     return `<article class="update-card">
         <div class="update-card-badge"><span style="font-size:11px;font-weight:900;">NEW</span></div>
-        <h3>Update #${esc(u.num)}</h3>
+        <h3>${esc(u.title || ("Update #"+u.num))}</h3>
         ${u.image ? `<img src="${u.image}" alt="" style="max-width:100%;border-radius:10px;margin:8px 0">` : ""}
         <p>${esc(u.text)}</p>
       </article>`;

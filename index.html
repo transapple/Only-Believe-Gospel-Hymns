@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Only Believe Gospel Hymns</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#1E3FAE">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Only Believe">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background:linear-gradient(160deg,#1E3FAE 0%,#16307F 100%);
+    color:#fff;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    min-height:100%;
+    padding:32px 24px calc(32px + env(safe-area-inset-bottom,0px));
+    text-align:center;
+  }
+  .logo{
+    width:132px; height:132px; border-radius:30px;
+    box-shadow:0 12px 30px rgba(0,0,0,.35);
+    margin-bottom:26px;
+    background:#1E3FAE;
+    object-fit:cover;
+  }
+  .name{
+    font-size:24px;
+    font-weight:800;
+    letter-spacing:.2px;
+    margin-bottom:6px;
+  }
+  .tagline{
+    font-size:14px;
+    color:rgba(255,255,255,.75);
+    margin-bottom:44px;
+  }
+  .install-btn{
+    width:100%;
+    max-width:320px;
+    background:#E8AC2E;
+    color:#3a2a00;
+    border:none;
+    border-radius:14px;
+    padding:16px 20px;
+    font-size:16px;
+    font-weight:800;
+    cursor:pointer;
+    box-shadow:0 8px 20px rgba(232,172,46,.35);
+    margin-bottom:16px;
+  }
+  .install-btn:active{transform:scale(.98);}
+  .continue-link{
+    background:none;
+    border:none;
+    color:rgba(255,255,255,.85);
+    font-size:14px;
+    font-weight:600;
+    text-decoration:underline;
+    cursor:pointer;
+    padding:10px;
+  }
+  .hint{
+    position:fixed;
+    left:50%;
+    bottom:calc(20px + env(safe-area-inset-bottom,0px));
+    transform:translateX(-50%);
+    background:rgba(0,0,0,.55);
+    color:#fff;
+    padding:10px 16px;
+    border-radius:14px;
+    font-size:13px;
+    max-width:86vw;
+    display:none;
+  }
+  .hint.show{display:block;}
+</style>
+</head>
+<body>
+  <img class="logo" src="icon-512.png" alt="Only Believe Gospel Hymns logo">
+  <div class="name">Only Believe Gospel Hymns</div>
+  <div class="tagline">Echoes of Heavenly Chorus</div>
+  <button class="install-btn" id="installBtn">Install</button>
+  <button class="continue-link" id="continueBtn">Continue in browser</button>
+  <div class="hint" id="hint"></div>
+
+<script>
+  const appPage = 'app.html';
+  let deferredPrompt = null;
+  const hint = document.getElementById('hint');
+
+  function showHint(msg){
+    hint.textContent = msg;
+    hint.classList.add('show');
+    setTimeout(() => hint.classList.remove('show'), 6000);
+  }
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+  });
+
+  document.getElementById('installBtn').addEventListener('click', async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const choice = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (choice && choice.outcome === 'accepted') {
+        window.location.href = appPage;
+      }
+      return;
+    }
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    if (isIOS) {
+      showHint('Tap the Share icon below, then "Add to Home Screen".');
+    } else {
+      showHint('Open your browser menu and choose "Add to Home Screen" or "Install app".');
+    }
+  });
+
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    window.location.href = appPage;
+  });
+
+  window.addEventListener('appinstalled', () => {
+    window.location.href = appPage;
+  });
+
+  // Already running as the installed app (rare on this screen, but just in case)
+  try {
+    const standalone = window.matchMedia && window.matchMedia('(display-mode: standalone)').matches;
+    if (standalone || window.navigator.standalone === true) {
+      window.location.href = appPage;
+    }
+  } catch (e) {}
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('sw.js').catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

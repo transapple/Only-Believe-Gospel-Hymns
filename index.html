@@ -102,6 +102,10 @@
     font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
     display:flex; justify-content:center; color:var(--ink);
     background:var(--paper);
+    -webkit-user-select:none; user-select:none; -webkit-touch-callout:none;
+  }
+  input, textarea, select, [contenteditable="true"]{
+    -webkit-user-select:text; user-select:text; -webkit-touch-callout:default;
   }
   .device{
     width:100%; max-width:420px; height:100vh;
@@ -138,6 +142,7 @@
   .nav-icon-btn:active{transform:scale(0.9);}
   .nav-icon-btn{position:relative;}
   .nav-badge{position:absolute; top:-2px; right:-2px; min-width:16px; height:16px; padding:0 4px; border-radius:9px; background:var(--red); color:#fff; font-size:10px; font-weight:800; display:flex; align-items:center; justify-content:center; line-height:1; box-shadow:0 0 0 2px #fff;}
+  .nav-badge[hidden]{display:none;}
   .nav-icon-btn.profile-btn{padding:0; overflow:hidden;}
   .profile-avatar{width:100%; height:100%; border-radius:50%; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,var(--blue),var(--purple)); color:#fff; font-weight:800; font-size:14px; overflow:hidden;}
   .profile-avatar img{width:100%; height:100%; object-fit:cover; display:block;}
@@ -234,6 +239,11 @@
   }
   .carousel-arrow:active{transform:scale(0.85);}
   .carousel-content{flex:1; display:flex; align-items:center; gap:10px; justify-content:flex-start; margin:0 -13px; padding:0;}
+  @keyframes carouselSlideIn{
+    0%{ opacity:0; transform:translateX(14px); }
+    100%{ opacity:1; transform:translateX(0); }
+  }
+  .carousel-content.slide-anim{ animation:carouselSlideIn .38s cubic-bezier(.25,.8,.3,1); }
   .free-badge{
     background:linear-gradient(135deg, var(--green), #123f27);
     color:#fff; font-weight:900; font-style:italic; font-size:18px;
@@ -241,6 +251,14 @@
     box-shadow:0 4px 10px rgba(27,94,58,0.35);
     flex-shrink:0; display:flex; align-items:center; justify-content:center;
     min-width:48px; min-height:48px; transition:background .3s ease;
+  }
+  .free-badge.has-image{
+    padding:0; transform:none; overflow:hidden; box-shadow:0 4px 10px rgba(20,25,60,0.28);
+    width:72px; height:72px; min-width:72px; min-height:72px;
+  }
+  .free-badge.has-image img{
+    display:block; width:72px; height:72px; object-fit:cover; border-radius:14px;
+    padding-top:2px; margin:0;
   }
   .carousel-text-wrap{flex:1; display:flex; flex-direction:column; align-items:stretch; min-width:0;}
   .carousel-text{
@@ -318,11 +336,12 @@
   .nav-tab:active{transform:scale(0.92);}
 
   .toast{
-    position:absolute; left:50%; bottom:70px; transform:translate(-50%,20px);
+    position:fixed; left:50%; bottom:70px; transform:translate(-50%,20px);
     background:rgba(26,29,46,0.94); color:#fff; font-size:13px; font-weight:600;
-    padding:10px 18px; border-radius:999px; opacity:0;
+    padding:11px 18px; border-radius:16px; opacity:0;
     transition:opacity .25s ease, transform .25s ease; pointer-events:none;
-    white-space:nowrap; z-index:6;
+    white-space:normal; max-width:min(86vw,360px); width:max-content;
+    text-align:center; line-height:1.4; z-index:20000;
   }
   .toast.show{opacity:1; transform:translate(-50%,0);}
 
@@ -365,9 +384,9 @@
 .song-item{display:flex;align-items:center;gap:12px;padding:13px 14px;margin-bottom:9px;background:var(--card);border-radius:14px;box-shadow:0 1px 2px rgba(20,25,60,0.05), 0 4px 10px rgba(20,25,60,0.04);border:none;width:100%;text-align:left;font-family:inherit;transition:transform .12s ease;}
 .song-item:active{transform:scale(0.98);}
 .song-num{flex-shrink:0;width:26px;font-size:13px;font-weight:800;color:var(--ink-soft);}
-.song-item-main{flex:1;min-width:0;}
-.song-item-title{font-size:14.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.song-item-snippet{font-size:12px;color:var(--ink-soft);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.song-item-main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.song-item-title{font-size:17px;font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.song-item-snippet{font-size:12px;color:var(--ink-soft);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .song-key{flex-shrink:0;font-size:11.5px;font-weight:800;color:var(--blue);background:var(--gold-soft);padding:4px 9px;border-radius:8px;}
 .hymns-empty{text-align:center;color:var(--ink-soft);font-size:13px;padding:40px 20px;}
 
@@ -630,7 +649,7 @@
           </div>
         </div>
       </div>
-      <div class="dots">
+      <div class="dots" id="carouselDots">
         <span class="dot"></span>
         <span class="dot"></span>
         <span class="dot active"></span>
@@ -952,9 +971,14 @@
             <span class="more-row-label">Report a Problem</span>
             <span class="more-row-chevron">&#10095;</span>
           </button>
-          <button class="more-row" data-action="toast" data-log="1" data-msg="Opening share options…" type="button">
+          <button class="more-row" id="shareAppRow" type="button">
             <span class="more-row-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5.5" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="6" cy="12" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="18" cy="18.5" r="2.3" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8.1 10.8 15.9 6.7M8.1 13.2l7.8 4.1" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span>
             <span class="more-row-label">Share This App</span>
+            <span class="more-row-chevron">&#10095;</span>
+          </button>
+          <button class="more-row" id="updateAppRow" type="button">
+            <span class="more-row-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.51-6.02"/><polyline points="20.5 4.5 20.5 10.5 14.5 10.5"/></svg></span>
+            <span class="more-row-label">Update This App</span>
             <span class="more-row-chevron">&#10095;</span>
           </button>
           <button class="more-row" id="moreSettingsRow" type="button">
@@ -1401,15 +1425,18 @@ window.OBGH_DB = (function(){
 <script>
 document.addEventListener("DOMContentLoaded", () => {
   const whatsappChannelUrl = "https://whatsapp.com/channel/0029VbAyAjz9xVJgyagmkL2F";
+  const escAttr = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
-  const dots = document.querySelectorAll(".dot");
+  const dotsWrap = document.getElementById("carouselDots");
+  let dots = document.querySelectorAll(".dot");
   const leftArrow = document.querySelector(".carousel-arrow.left");
   const rightArrow = document.querySelector(".carousel-arrow.right");
+  const carouselContentEl = document.querySelector(".carousel-content");
   const carouselTextEl = document.getElementById("carouselText");
   const readMoreBtn = document.getElementById("readMoreBtn");
   const carouselBadge = document.getElementById("carouselBadge");
 
-  const slides = [
+  const staticSlides = [
     {
       icon: "music",
       text: "Sing along with timeless gospel hymns collected from choirs around the world, remastered for clarity and warmth so every verse feels like it was written just for you.",
@@ -1432,7 +1459,36 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ];
 
-  let activeIndex = 2;
+  // Live "updates" posted from the admin app get turned into carousel slides
+  // too, prepended in front of the static ones, so new updates actually show
+  // up on the Home carousel instead of only inside the "Updates" screen.
+  let slides = staticSlides.slice();
+  const CAROUSEL_UPDATES_CACHE_KEY = "obgh_carousel_updates_cache_v1";
+
+  function updateSlideFromLiveUpdate(u){
+    return {
+      icon: "new",
+      text: u.text,
+      image: u.image || null,
+      gradient: "linear-gradient(135deg, var(--blue), var(--blue-2))"
+    };
+  }
+
+  function rebuildDots(){
+    if(!dotsWrap) return;
+    dotsWrap.innerHTML = slides.map(() => `<span class="dot"></span>`).join("");
+    dots = dotsWrap.querySelectorAll(".dot");
+    dots.forEach((dot, i) => dot.addEventListener("click", () => { setActive(i); startAutoplay(); }));
+  }
+
+  function applyLiveUpdates(liveUpdates){
+    const liveSlides = (liveUpdates||[]).map(updateSlideFromLiveUpdate);
+    slides = liveSlides.concat(staticSlides);
+    rebuildDots();
+    setActive(Math.min(activeIndex, slides.length - 1));
+  }
+
+  let activeIndex = Math.min(2, slides.length - 1);
   let autoplayTimer;
 
   function updateReadMore(){
@@ -1449,12 +1505,26 @@ document.addEventListener("DOMContentLoaded", () => {
     activeIndex = index;
     const slide = slides[index];
     carouselTextEl.textContent = slide.text;
-    carouselBadge.innerHTML =
-      slide.icon === "music" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>' :
-      slide.icon === "people" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 19c.5-3 2.4-4.5 5.5-4.5s5 1.5 5.5 4.5M14.5 15c2.9-.4 5 .9 5.8 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' :
-      slide.icon === "heart" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.7c0 5.2-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.7A4.7 4.7 0 0 1 12 6.1a4.7 4.7 0 0 1 8.8 2.6Z" fill="currentColor"/></svg>' :
-      '<span style="font-size:22px;font-weight:900;">FREE</span>';
-    carouselBadge.style.background = slide.gradient;
+    carouselBadge.classList.toggle("has-image", !!slide.image);
+    if(slide.image){
+      carouselBadge.innerHTML = `<img src="${escAttr(slide.image)}" alt="">`;
+      carouselBadge.style.background = "none";
+    } else {
+      carouselBadge.innerHTML =
+        slide.icon === "music" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>' :
+        slide.icon === "people" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 19c.5-3 2.4-4.5 5.5-4.5s5 1.5 5.5 4.5M14.5 15c2.9-.4 5 .9 5.8 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' :
+        slide.icon === "heart" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M20.8 8.7c0 5.2-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.7A4.7 4.7 0 0 1 12 6.1a4.7 4.7 0 0 1 8.8 2.6Z" fill="currentColor"/></svg>' :
+        slide.icon === "new" ? '<span style="font-size:11px;font-weight:900;">NEW</span>' :
+        '<span style="font-size:22px;font-weight:900;">FREE</span>';
+      carouselBadge.style.background = slide.gradient;
+    }
+    // Restart the fade/slide-in animation on every change (removing then
+    // re-adding the class forces the browser to replay it from scratch).
+    if(carouselContentEl){
+      carouselContentEl.classList.remove("slide-anim");
+      void carouselContentEl.offsetWidth;
+      carouselContentEl.classList.add("slide-anim");
+    }
     updateReadMore();
   }
 
@@ -1496,6 +1566,7 @@ document.addEventListener("DOMContentLoaded", () => {
     updatesScreen.classList.add("open");
     updatesScreen.setAttribute("aria-hidden","false");
     document.body.style.overflow="hidden";
+    history.pushState({ obghScreen: "updates" }, "", location.href);
     const liveUpdates = await window.OBGH_DB.fetchUpdates();
     if(liveUpdates.length){
       try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
@@ -1519,6 +1590,28 @@ document.addEventListener("DOMContentLoaded", () => {
   updateReadMore();
   startAutoplay();
 
+  // Show cached live updates on the Home carousel immediately (works offline),
+  // then refresh from Supabase in the background, and again whenever the app
+  // is reopened/comes back to the foreground, so new updates actually appear
+  // without needing a full reload.
+  async function refreshCarouselUpdates(){
+    if(!navigator.onLine) return;
+    if(!window.OBGH_DB || typeof window.OBGH_DB.fetchUpdates !== "function") return;
+    try{
+      const liveUpdates = await window.OBGH_DB.fetchUpdates();
+      if(liveUpdates && liveUpdates.length){
+        try{ localStorage.setItem(CAROUSEL_UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
+        applyLiveUpdates(liveUpdates);
+      }
+    }catch(e){ /* keep whatever is currently shown */ }
+  }
+  try{
+    const cachedCarouselUpdates = JSON.parse(localStorage.getItem(CAROUSEL_UPDATES_CACHE_KEY)) || [];
+    if(cachedCarouselUpdates.length) applyLiveUpdates(cachedCarouselUpdates);
+  }catch(e){}
+  refreshCarouselUpdates();
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") refreshCarouselUpdates(); });
+
   const toastEl = document.getElementById("toast");
   let toastTimer;
   function showToast(msg){
@@ -1541,6 +1634,58 @@ document.addEventListener("DOMContentLoaded", () => {
       logActivity(el.dataset.msg.replace(/…$/, ""), "generic");
     }
   });
+
+  // Share This App — native share sheet with a short 2-line message + link,
+  // falling back to copying the link when Web Share isn't available.
+  const SHARE_APP_URL = "https://transapple.github.io/Only-Believe-Gospel-Hymns/";
+  const SHARE_APP_TEXT = "Only Believe Gospel Hymns — read gospel hymns anytime and connect with other believers.\nFree to use, give it a try:";
+  const shareAppRow = document.getElementById("shareAppRow");
+  if(shareAppRow){
+    shareAppRow.addEventListener("click", async () => {
+      if(navigator.share){
+        try{
+          await navigator.share({
+            title: "Only Believe Gospel Hymns",
+            text: SHARE_APP_TEXT,
+            url: SHARE_APP_URL
+          });
+          if(typeof logActivity === "function") logActivity("Shared app", "generic");
+          return;
+        }catch(err){
+          if(err && err.name === "AbortError") return; // user cancelled the share sheet
+          // fall through to clipboard fallback on real errors
+        }
+      }
+      try{
+        await navigator.clipboard.writeText(`${SHARE_APP_TEXT}\n${SHARE_APP_URL}`);
+        showToast("Link copied — paste it anywhere to share");
+      }catch(err){
+        showToast(SHARE_APP_URL);
+      }
+      if(typeof logActivity === "function") logActivity("Shared app", "generic");
+    });
+  }
+
+  // Update This App — forces a fresh load from the live app link so any new
+  // version/features are picked up, instead of whatever this device has cached.
+  const updateAppRow = document.getElementById("updateAppRow");
+  if(updateAppRow){
+    updateAppRow.addEventListener("click", async () => {
+      showToast("Checking for the latest version…");
+      try{
+        if("serviceWorker" in navigator){
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map(r => r.update().catch(() => {})));
+        }
+        if("caches" in window){
+          const keys = await caches.keys();
+          await Promise.all(keys.map(k => caches.delete(k)));
+        }
+      }catch(err){ /* best effort — still reload below even if this failed */ }
+      if(typeof logActivity === "function") logActivity("Updated app", "generic");
+      window.location.href = SHARE_APP_URL + (SHARE_APP_URL.includes("?") ? "&" : "?") + "u=" + Date.now();
+    });
+  }
 
   /* ================= Notifications + Profile =================
      Notifications are 100% live: the list in memory is populated only from
@@ -1702,6 +1847,7 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="notif-list">${rows}</div>
       <div class="bc-modal-actions"><button class="bc-cancel" id="notifClose" type="button">Close</button><button class="bc-save" id="notifMarkAll" type="button">Mark all read</button></div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     document.getElementById("notifClose").onclick = closeGenericModal;
     document.getElementById("notifMarkAll").onclick = () => {
       notifications.forEach(markRead);
@@ -1865,12 +2011,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let activeLang = "english";
+  let defaultLang = "english"; // the language chosen in Settings — Hymns resets to this every time it's opened
   let activeSong = null;
   let fontSize = 17;
   let currentTheme = "light";
   {
     const saved = getSettings();
-    if(saved.language && languages.some(l => l.code === saved.language)) activeLang = saved.language;
+    if(saved.language && languages.some(l => l.code === saved.language)){ activeLang = saved.language; defaultLang = saved.language; }
     if(saved.theme && THEMES.some(t => t.id === saved.theme)) currentTheme = saved.theme;
     if(saved.fontSize) fontSize = saved.fontSize;
     if(saved.appTheme && APP_THEMES.some(t => t.id === saved.appTheme)) currentAppTheme = saved.appTheme;
@@ -1949,6 +2096,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function openHymns(){
+    activeLang = defaultLang;
     renderLangTabs();
     renderHymnsList();
     hymnsScreen.classList.add("open");
@@ -2211,7 +2359,7 @@ document.addEventListener("DOMContentLoaded", () => {
     settingsLangListEl.innerHTML = languages.map(l => `
       <button class="more-row" data-lang="${l.code}" type="button">
         <span class="more-row-label">${l.label}</span>
-        ${l.code === activeLang ? '<span class="settings-check">&#10003;</span>' : ""}
+        ${l.code === defaultLang ? '<span class="settings-check">&#10003;</span>' : ""}
       </button>`).join("");
   }
   function renderSettingsTheme(){
@@ -2253,10 +2401,12 @@ document.addEventListener("DOMContentLoaded", () => {
   settingsLangListEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-lang]");
     if(!btn) return;
-    activeLang = btn.dataset.lang;
-    saveSettings({ language: activeLang });
+    defaultLang = btn.dataset.lang;
+    activeLang = defaultLang;
+    saveSettings({ language: defaultLang });
     renderSettingsLanguages();
-    showToast(`Default hymn language set to ${languages.find(l => l.code === activeLang).label}`);
+    if(hymnsScreen.classList.contains("open")){ renderLangTabs(); renderHymnsList(); }
+    showToast(`Default hymn language set to ${languages.find(l => l.code === defaultLang).label}`);
   });
   settingsThemeRowEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-theme]");
@@ -2340,7 +2490,17 @@ document.addEventListener("DOMContentLoaded", () => {
       </div>
     </div>`;
     document.body.appendChild(bg);
-    document.getElementById("cancelReportBtn").onclick = () => bg.remove();
+    history.pushState({ obghScreen: "report" }, "", location.href);
+    function onPop(e){
+      const st = e.state;
+      if(!st || st.obghScreen !== "report"){
+        bg.remove();
+        window.removeEventListener("popstate", onPop);
+      }
+    }
+    window.addEventListener("popstate", onPop);
+    const closeReportPopup = () => { bg.remove(); window.removeEventListener("popstate", onPop); };
+    document.getElementById("cancelReportBtn").onclick = closeReportPopup;
     document.getElementById("sendReportBtn").onclick = async () => {
       const text = document.getElementById("reportText").value.trim();
       if(!text){ showToast("Please describe the problem first"); return; }
@@ -2349,14 +2509,14 @@ document.addEventListener("DOMContentLoaded", () => {
       let ok = false;
       try{ ok = await window.OBGH_DB.submitReport({ kind:"complaint", postText:text, fromUser:"app user" }); }catch(e){ ok = false; }
       if(ok){
-        bg.remove();
+        closeReportPopup();
         showToast("Thank you — your report was sent");
       }else{
         btn.disabled = false; btn.textContent = "Send";
         showToast("Could not send your report — please try again.");
       }
     };
-    bg.onclick = e => { if(e.target === bg) bg.remove(); };
+    bg.onclick = e => { if(e.target === bg) closeReportPopup(); };
   }
   const moreReportRow = document.getElementById("moreReportRow");
   if(moreReportRow) moreReportRow.addEventListener("click", openReportProblem);
@@ -2364,6 +2524,12 @@ document.addEventListener("DOMContentLoaded", () => {
   // Drive every overlay screen from the device/browser back button (and the
   // in-app back buttons above, which just call history.back()). One physical
   // back step closes the topmost open screen; a second step closes the next.
+  const sharedModalBg = document.getElementById("bcModalBg");
+  const sharedModalEl = document.getElementById("bcModal");
+  function closeSharedGenericModal(){
+    if(sharedModalEl) sharedModalEl.innerHTML = "";
+    if(sharedModalBg) sharedModalBg.classList.remove("open");
+  }
   const LIST_SCREENS = [
     { name: "hymns", el: hymnsScreen, close: closeHymns },
     { name: "favorites", el: favoritesScreen, close: closeFavorites },
@@ -2372,7 +2538,9 @@ document.addEventListener("DOMContentLoaded", () => {
     { name: "more", el: moreScreen, close: closeMore },
     { name: "settings", el: settingsScreen, close: closeSettings },
     { name: "userGuide", el: userGuideScreen, close: closeUserGuide },
-    { name: "contact", el: contactScreen, close: closeContact }
+    { name: "contact", el: contactScreen, close: closeContact },
+    { name: "updates", el: updatesScreen, close: closeUpdates },
+    { name: "modal", el: sharedModalBg, close: closeSharedGenericModal }
   ];
   window.addEventListener("popstate", (e) => {
     const state = e.state;
@@ -2381,7 +2549,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     if(window.NB) window.NB.closeOverlays();
     LIST_SCREENS.forEach(({ name, el, close }) => {
-      if(el.classList.contains("open") && (!state || (state.obghScreen !== name && state.obghScreen !== "song"))){
+      if(el && el.classList.contains("open") && (!state || (state.obghScreen !== name && state.obghScreen !== "song"))){
         close();
       }
     });
@@ -2716,6 +2884,7 @@ document.addEventListener("DOMContentLoaded", () => {
     nbLongPressNoteId = id;
     nbCardMenuBackdrop.classList.add("open");
     nbCardMenuBackdrop.setAttribute("aria-hidden", "false");
+    history.pushState({ obghScreen: "nbCardMenu" }, "", location.href);
   }
   function closeCardMenu(){
     nbCardMenuBackdrop.classList.remove("open");
@@ -2764,7 +2933,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ---------- note modal ---------- */
-  function openModal(){ nbModalBackdrop.classList.add("open"); nbModalBackdrop.setAttribute("aria-hidden","false"); }
+  function openModal(){ nbModalBackdrop.classList.add("open"); nbModalBackdrop.setAttribute("aria-hidden","false"); history.pushState({ obghScreen: "nbNoteModal" }, "", location.href); }
   function closeModal(){ nbModalBackdrop.classList.remove("open"); nbModalBackdrop.setAttribute("aria-hidden","true"); editingNoteId = null; }
 
   function openNoteModal(noteId){
@@ -2822,11 +2991,13 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   /* ---------- confirm modal ---------- */
+  let currentNbConfirmCleanup = null;
   function nbConfirmAction(title, msg, cb){
     nbConfirmTitle.textContent = title || "Confirm";
     nbConfirmMessage.textContent = msg || "Are you sure?";
     nbConfirmBackdrop.classList.add("open");
     nbConfirmBackdrop.setAttribute("aria-hidden","false");
+    history.pushState({ obghScreen: "nbConfirm" }, "", location.href);
     function ok(){ cleanup(); cb && cb(); }
     function cancel(){ cleanup(); }
     function cleanup(){
@@ -2834,7 +3005,9 @@ document.addEventListener("DOMContentLoaded", () => {
       nbConfirmBackdrop.setAttribute("aria-hidden","true");
       nbConfirmOk.removeEventListener("click", ok);
       nbConfirmCancel.removeEventListener("click", cancel);
+      currentNbConfirmCleanup = null;
     }
+    currentNbConfirmCleanup = cleanup;
     nbConfirmOk.addEventListener("click", ok, { once:true });
     nbConfirmCancel.addEventListener("click", cancel, { once:true });
   }
@@ -2852,6 +3025,7 @@ document.addEventListener("DOMContentLoaded", () => {
     nbReaderMeta.textContent = `Created: ${new Date(note.createdAt).toLocaleString()} • Updated: ${new Date(note.updatedAt||note.createdAt).toLocaleString()}`;
     nbReader.classList.add("open");
     nbReader.setAttribute("aria-hidden","false");
+    history.pushState({ obghScreen: "nbReader" }, "", location.href);
   }
   function closeReader(){ nbReader.classList.remove("open"); nbReader.setAttribute("aria-hidden","true"); readerNoteId = null; }
   nbReaderCloseBtn.addEventListener("click", closeReader);
@@ -2928,6 +3102,20 @@ document.addEventListener("DOMContentLoaded", () => {
     input.click();
   });
 
+  // Let the device/browser back button step out of whichever notebook
+  // overlay (long-press menu, note editor, delete-confirm, or reader) is
+  // currently on top, one level at a time — same overlays the app's own
+  // X/Cancel buttons already close.
+  window.addEventListener("popstate", (e) => {
+    const state = e.state;
+    if(nbCardMenuBackdrop.classList.contains("open") && (!state || state.obghScreen !== "nbCardMenu")) closeCardMenu();
+    if(nbModalBackdrop.classList.contains("open") && (!state || state.obghScreen !== "nbNoteModal")) closeModal();
+    if(nbConfirmBackdrop.classList.contains("open") && (!state || state.obghScreen !== "nbConfirm")){
+      if(currentNbConfirmCleanup) currentNbConfirmCleanup();
+    }
+    if(nbReader.classList.contains("open") && (!state || state.obghScreen !== "nbReader")) closeReader();
+  });
+
   /* ---------- expose to the app shell ---------- */
   window.NB = {
     render: function(){ switchNbTab(nbCurrentTab === "settings" ? "notes" : nbCurrentTab); render(); },
@@ -2949,6 +3137,10 @@ document.addEventListener("DOMContentLoaded", () => {
 .bc-screen.open{display:flex}
 .bc-header{display:flex;align-items:center;gap:10px;padding:calc(12px + var(--safe-top)) 14px 11px;background:var(--card);border-bottom:1px solid var(--line);flex-shrink:0}
 .bc-back,.bc-iconbtn{width:38px;height:38px;border:0;border-radius:50%;background:var(--paper);color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+#twRefresh{font-size:19px;transition:transform .15s;}
+#twRefresh svg{display:block;width:19px;height:19px;transform-origin:50% 50%;transform-box:fill-box;}
+#twRefresh.spinning svg{animation:tw-spin .8s linear infinite;}
+@keyframes tw-spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
 .bc-head-main{flex:1;min-width:0}.bc-title{font-size:18px;font-weight:850;color:var(--blue-2)}.bc-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
 .bc-body{flex:1;overflow:auto;padding:12px 12px 92px;-webkit-overflow-scrolling:touch}
 .bc-body::-webkit-scrollbar{display:none}
@@ -3062,6 +3254,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   <header class="bc-header">
     <button class="bc-back" id="twBack" type="button">‹</button>
     <div class="bc-head-main"><div class="bc-title">Testimony Wall</div><div class="bc-sub">A spiritual-only community feed</div></div>
+    <button class="bc-iconbtn" id="twRefresh" type="button" aria-label="Refresh testimonies"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.5 12a8.5 8.5 0 1 1-2.51-6.02"/><polyline points="20.5 4.5 20.5 10.5 14.5 10.5"/></svg></button>
     <button class="bc-iconbtn" id="twRules" type="button">ⓘ</button>
   </header>
   <div class="bc-body" id="twBody"></div>
@@ -3125,6 +3318,9 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   // Merge in real testimonies/comments posted from other devices (or via the
   // admin app).
   async function loadLivePosts(){
+    const refreshBtn = document.getElementById("twRefresh");
+    if(refreshBtn) refreshBtn.classList.add("spinning");
+    try{
     const livePosts = await window.OBGH_DB.fetchPosts();
     if(livePosts.length){
       const existingIds = new Set(db.posts.map(p=>p.id));
@@ -3171,6 +3367,11 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     save();
     if(typeof renderWall === "function") renderWall();
     if(typeof renderWallMini === "function") renderWallMini();
+    }catch(e){
+      toast("Couldn't refresh the Testimony Wall — check your connection and try again.");
+    }finally{
+      if(refreshBtn) refreshBtn.classList.remove("spinning");
+    }
   }
   loadLivePosts();
   function save(){try{localStorage.setItem(KEY,JSON.stringify(db))}catch(e){} try{document.dispatchEvent(new CustomEvent("obgh:db-changed"))}catch(e){}}
@@ -3297,6 +3498,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     if(!src)return;
     modal.innerHTML=`<div class="bc-image-view"><img src="${esc(src)}" alt=""><div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Close</button></div></div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
   }
   function openFullText(postId){
@@ -3310,11 +3512,13 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       ${p.verse?`<div class="tw-verse">📖 ${esc(p.verse)}</div>`:""}
       <div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Close</button></div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
   }
 
   const believerScreen=$("believersScreen"), testimonyScreen=$("testimonyScreen"), chatScreen=$("chatScreen");
   const bcBody=$("bcBody"), twBody=$("twBody"), chatBody=$("chatBody"), chatHead=$("chatHead"), modalBg=$("bcModalBg"), modal=$("bcModal");
+  const twRefreshBtn=$("twRefresh");
 
   function openScreen(el){[believerScreen,testimonyScreen,chatScreen].forEach(x=>x.classList.remove("open"));el.classList.add("open");document.body.style.overflow="hidden";
     if(window.OBGH_setUsageFeature){
@@ -3322,9 +3526,25 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       window.OBGH_setUsageFeature(feat);
     }
   }
-  function closeScreens(){stopChatSync();[believerScreen,testimonyScreen,chatScreen].forEach(x=>x.classList.remove("open"));document.body.style.overflow="";
+  function closeScreens(){stopChatSync();stopWallPolling();[believerScreen,testimonyScreen,chatScreen].forEach(x=>x.classList.remove("open"));document.body.style.overflow="";
     if(window.OBGH_setUsageFeature) window.OBGH_setUsageFeature(document.querySelector(".nav-tab.active")?.dataset.tab || "home");
   }
+
+  // Keep the Testimony Wall feeling live, like Facebook/X: while it's open we
+  // quietly re-check Supabase every so often and swap in anything new, plus a
+  // manual refresh button and an immediate refresh whenever the app is
+  // reopened from the background.
+  let wallPollTimer=null;
+  function startWallPolling(){
+    stopWallPolling();
+    wallPollTimer=setInterval(()=>{
+      if(testimonyScreen.classList.contains("open") && navigator.onLine) loadLivePosts();
+    }, 20000);
+  }
+  function stopWallPolling(){ if(wallPollTimer){ clearInterval(wallPollTimer); wallPollTimer=null; } }
+  document.addEventListener("visibilitychange", () => {
+    if(document.visibilityState==="visible" && testimonyScreen.classList.contains("open") && navigator.onLine) loadLivePosts();
+  });
 
   function avatar(b){
     if(b && b.avatar) return `<span class="bc-avatar"><img src="${esc(b.avatar)}" alt=""></span>`;
@@ -3443,6 +3663,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       </div>
     </div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
     $("mChat").onclick=()=>{closeModal();openChat(b.id)};
   }
@@ -3462,6 +3683,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       <div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Close</button></div>
     </div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
     const listEl=$("bcFollowList");
     async function load(which){
@@ -3518,6 +3740,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       <div class="bc-check"><input type="checkbox" id="aAgree" ${a.id?"checked":""}> <span>I will use Believers Connect for respectful Christian fellowship and spiritual content.</span></div>
       <div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Cancel</button><button class="bc-save" id="mSave">Save account</button></div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
     $("aAvatarPick").onclick=()=>$("aAvatarFile").click();
     $("aAvatarFile").addEventListener("change",e=>{
@@ -3566,6 +3789,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         <button class="bc-cancel" id="mCancel" style="width:100%">Close</button>
       </div>`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
     $("asEdit").onclick=()=>{closeModal();openAccount(db.account)};
     $("asDelete").onclick=()=>{
@@ -3592,6 +3816,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       </div>
       <div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Cancel</button><button class="bc-save" id="mSave">${editing?"Save changes":"Publish"}</button></div>`;
     modalBg.classList.add("open");$("mCancel").onclick=closeModal;
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("pImagePick").onclick=()=>$("pImageFile").click();
     $("pImageFile").addEventListener("change",e=>{
       const file=e.target.files&&e.target.files[0]; if(!file)return;
@@ -3678,6 +3903,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const b=believer(id);if(!b)return;
     stopChatSync();
     db.currentChat=id;save();openScreen(chatScreen);
+    history.pushState({ obghScreen: "believers", obghChat: true }, "", location.href);
     if(isLiveChat(id)){
       chatHead.innerHTML=`<div class="bc-title">${esc(b.name)}</div><div class="bc-sub-status" id="chatStatusLine"><span class="bc-status-dot"></span> …</div>`;
       chatPresenceUnsub=window.OBGH_DB.onPresenceChange(()=>refreshChatStatus(id));
@@ -3830,6 +4056,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const scrollable=comments.length>3?"is-scrollable":"";
     modal.innerHTML=`<h3>Comments</h3><p class="help">Like, reply and follow the conversation. Replies stay grouped under their comment.</p><div class="tw-comments ${scrollable}" id="twCommentList">${rows}</div>${db.account?`<div class="tw-comment-form" id="twCommentForm"><div class="bc-field"><textarea id="cText" placeholder="Write a respectful Christian encouragement…"></textarea></div><div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Close</button><button class="bc-save" id="mSave">Post comment</button></div></div>`:`<div class="bc-modal-actions"><button class="bc-cancel" id="mCancel">Close</button><button class="bc-save" id="mLoginComment">Create account to comment</button></div>`}`;
     modalBg.classList.add("open");
+    history.pushState({ obghScreen: "modal" }, "", location.href);
     $("mCancel").onclick=closeModal;
     if($("mLoginComment"))$("mLoginComment").onclick=()=>{closeModal();accountRequired("comment")};
     if($("mSave"))$("mSave").onclick=async()=>{
@@ -4180,9 +4407,20 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   $("bcFab").onclick=()=>db.account?openAccount():openAccount();
   $("twFab").onclick=openTestimonyComposer;
   $("twRules").onclick=()=>toast("Testimony Wall is for testimonies, Scripture, prayer, worship and Christian encouragement only.");
+  twRefreshBtn.onclick=()=>{ if(!requireOnline())return; loadLivePosts(); };
 
-  function openBelievers(){if(!requireOnline())return;db.currentTab="chats";openScreen(believerScreen);renderBelievers()}
-  function openWall(){if(!requireOnline())return;openScreen(testimonyScreen);renderWall()}
+  function openBelievers(){if(!requireOnline())return;db.currentTab="chats";openScreen(believerScreen);renderBelievers();history.pushState({ obghScreen: "believers" }, "", location.href);}
+  function openWall(){if(!requireOnline())return;openScreen(testimonyScreen);renderWall();loadLivePosts();startWallPolling();history.pushState({ obghScreen: "believers" }, "", location.href);}
+  window.addEventListener("popstate", (e) => {
+    const state = e.state;
+    if(chatScreen.classList.contains("open") && (!state || !state.obghChat)){
+      stopChatSync();
+      openScreen(believerScreen);
+      renderBelievers();
+    } else if((believerScreen.classList.contains("open") || testimonyScreen.classList.contains("open")) && (!state || state.obghScreen !== "believers")){
+      closeScreens();
+    }
+  });
 
   bcBody.addEventListener("click",e=>{
     const tab=e.target.closest("[data-tab]");if(tab){db.currentTab=tab.dataset.tab;save();renderBelievers();return}

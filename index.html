@@ -167,8 +167,25 @@
 
   .search-wrap{
     flex:1; display:flex; align-items:center; gap:8px; min-width:0;
-    background:var(--card); border-radius:14px; padding:11px 14px;
+    border-radius:25px; padding:11px 14px;
     box-shadow:0 1px 2px rgba(20,25,60,0.06), 0 6px 16px rgba(20,25,60,0.05);
+  }
+  .search-wrap,
+  .hymns-search-wrap{
+    border:1px solid transparent;
+    background-image: linear-gradient(var(--bar-bg,var(--card)), var(--bar-bg,var(--card))), linear-gradient(90deg, var(--blue) 0%, var(--blue) 35%, var(--red) 50%, var(--blue) 65%, var(--blue) 100%);
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+    background-size: 100% 100%, 250% 100%;
+    background-position: 0 0, 0% 0;
+    animation: obghSearchBorder 3.5s linear infinite;
+  }
+  @keyframes obghSearchBorder{
+    0%{ background-position: 0 0, 0% 0; }
+    100%{ background-position: 0 0, 100% 0; }
+  }
+  @media (prefers-reduced-motion: reduce){
+    .search-wrap, .hymns-search-wrap{ animation:none; }
   }
   .search-wrap input{
     border:none; outline:none; background:transparent; flex:1; min-width:0;
@@ -241,11 +258,27 @@
   }
   .carousel-arrow:active{transform:scale(0.85);}
   .carousel-content{flex:1; display:flex; align-items:center; gap:10px; justify-content:flex-start; margin:0 -13px; padding:0;}
-  @keyframes carouselSlideIn{
-    0%{ opacity:0; transform:translateX(14px); }
+  /* The carousel cycles through a few different transition styles between
+     slides (slide, fade, zoom) instead of always playing the same one, so
+     it keeps feeling fresh the longer it plays. */
+  @keyframes obghAnimSlide{
+    0%{ opacity:0; transform:translateX(28px); }
     100%{ opacity:1; transform:translateX(0); }
   }
-  .carousel-content.slide-anim{ animation:carouselSlideIn .38s cubic-bezier(.25,.8,.3,1); }
+  @keyframes obghAnimFade{
+    0%{ opacity:0; }
+    100%{ opacity:1; }
+  }
+  @keyframes obghAnimZoom{
+    0%{ opacity:0; transform:scale(0.86); }
+    100%{ opacity:1; transform:scale(1); }
+  }
+  .carousel-content.anim-slide{ animation:obghAnimSlide .48s cubic-bezier(.25,.8,.3,1); }
+  .carousel-content.anim-fade{ animation:obghAnimFade .55s ease; }
+  .carousel-content.anim-zoom{ animation:obghAnimZoom .42s cubic-bezier(.34,1.56,.64,1); }
+  @media (prefers-reduced-motion: reduce){
+    .carousel-content.anim-slide, .carousel-content.anim-fade, .carousel-content.anim-zoom{ animation:none; }
+  }
   .free-badge{
     background:linear-gradient(135deg, var(--green), #123f27);
     color:#fff; font-weight:900; font-style:italic; font-size:18px;
@@ -377,7 +410,7 @@
 .hymns-title{font-size:18px;font-weight:800;color:var(--blue-2);}
 .hymns-subtitle{font-size:12px;color:var(--ink-soft);margin-top:2px;}
 
-.hymns-search-wrap{display:flex;align-items:center;gap:8px;margin:12px 16px 0;padding:10px 14px;flex-shrink:0;background:var(--paper);border-radius:14px;box-shadow:0 1px 2px rgba(20,25,60,0.06), 0 6px 16px rgba(20,25,60,0.05);}
+.hymns-search-wrap{--bar-bg:var(--paper);display:flex;align-items:center;gap:8px;margin:12px 16px 0;padding:10px 14px;flex-shrink:0;border-radius:14px;box-shadow:0 1px 2px rgba(20,25,60,0.06), 0 6px 16px rgba(20,25,60,0.05);}
 .hymns-search-wrap svg{flex-shrink:0;color:var(--ink-soft);}
 .hymns-search-wrap input{border:none;outline:none;background:transparent;flex:1;min-width:0;font-size:15px;color:var(--ink);font-family:inherit;}
 .hymns-search-wrap input::placeholder{color:#A6AABE;}
@@ -1145,7 +1178,7 @@
 
 
   <nav class="bottom-nav">
-    <button class="nav-tab active" data-tab="home" data-action="toast" data-msg="Home">
+    <button class="nav-tab active" data-tab="home">
       <span class="nav-tab-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m3 11 9-7 9 7v9h-6v-5H9v5H3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg></span>
       <span class="nav-tab-label">Home</span>
     </button>
@@ -1153,11 +1186,11 @@
       <span class="nav-tab-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg></span>
       <span class="nav-tab-label">Hymns</span>
     </button>
-    <button class="nav-tab" data-tab="updates" data-action="toast" data-msg="Opening Updates…">
+    <button class="nav-tab" data-tab="updates">
       <span class="nav-tab-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9ZM10 21h4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
       <span class="nav-tab-label">Updates</span>
     </button>
-    <button class="nav-tab" data-tab="more" data-action="toast" data-msg="Opening More…">
+    <button class="nav-tab" data-tab="more">
       <span class="nav-tab-icon"><svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg></span>
       <span class="nav-tab-label">More</span>
     </button>
@@ -1454,28 +1487,10 @@ document.addEventListener("DOMContentLoaded", () => {
   const readMoreBtn = document.getElementById("readMoreBtn");
   const carouselBadge = document.getElementById("carouselBadge");
 
-  const staticSlides = [
-    {
-      icon: "music",
-      text: "Sing along with timeless gospel hymns collected from choirs around the world, remastered for clarity and warmth so every verse feels like it was written just for you.",
-      gradient: "linear-gradient(135deg, var(--blue), var(--blue-2))"
-    },
-    {
-      icon: "people",
-      text: "New hymns are added every week. Follow along, save your favorites, and share the songs that lift your spirit with your church family and friends.",
-      gradient: "linear-gradient(135deg, var(--purple), #4a2b73)"
-    },
-    {
-      icon: "free",
-      text: "100% free for anyone, anywhere, anytime. No data, no matter.",
-      gradient: "linear-gradient(135deg, var(--green), #123f27)"
-    },
-    {
-      icon: "heart",
-      text: "No subscriptions, no hidden fees, no ads interrupting your worship. Just pure, uninterrupted gospel music whenever your heart needs it most.",
-      gradient: "linear-gradient(135deg, var(--gold), #b9790f)"
-    }
-  ];
+  // Hardcoded placeholder slides have been removed — the Home carousel and
+  // the Updates screen now show only the real updates posted from the admin
+  // app (via Supabase), nothing baked in here.
+  const staticSlides = [];
 
   // Live "updates" posted from the admin app get turned into carousel slides
   // too, prepended in front of the static ones, so new updates actually show
@@ -1506,8 +1521,10 @@ document.addEventListener("DOMContentLoaded", () => {
     setActive(Math.min(activeIndex, slides.length - 1));
   }
 
-  let activeIndex = Math.min(2, slides.length - 1);
+  let activeIndex = 0;
   let autoplayTimer;
+  let slideAnimStep = 0;
+  const slideAnimStyles = ["anim-slide", "anim-fade", "anim-zoom"];
 
   function updateReadMore(){
     carouselTextEl.classList.remove("expanded");
@@ -1519,6 +1536,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setActive(index){
+    if(!slides.length) return;
     dots.forEach((dot, i) => dot.classList.toggle("active", i === index));
     activeIndex = index;
     const slide = slides[index];
@@ -1536,18 +1554,21 @@ document.addEventListener("DOMContentLoaded", () => {
         '<span style="font-size:22px;font-weight:900;">FREE</span>';
       carouselBadge.style.background = slide.gradient;
     }
-    // Restart the fade/slide-in animation on every change (removing then
-    // re-adding the class forces the browser to replay it from scratch).
+    // Restart the animation on every change, cycling through a different
+    // transition style each time (slide, then fade, then zoom, repeat) so
+    // it never feels stuck on one effect.
     if(carouselContentEl){
-      carouselContentEl.classList.remove("slide-anim");
+      carouselContentEl.classList.remove(...slideAnimStyles);
       void carouselContentEl.offsetWidth;
-      carouselContentEl.classList.add("slide-anim");
+      carouselContentEl.classList.add(slideAnimStyles[slideAnimStep % slideAnimStyles.length]);
+      slideAnimStep++;
     }
     updateReadMore();
   }
 
   function startAutoplay(){
     clearInterval(autoplayTimer);
+    if(!dots.length) return;
     autoplayTimer = setInterval(() => {
       setActive((activeIndex + 1) % dots.length);
     }, 7000);
@@ -1558,7 +1579,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updatesBack = document.getElementById("updatesBack");
 
   function staticSlidesHtml(){
-    return slides.map((slide, i) => `
+    return staticSlides.map((slide, i) => `
       <article class="update-card">
         <div class="update-card-badge">${i === 2 ? '<span style="font-size:11px;font-weight:900;">FREE</span>' : (i === 0 ? '<svg class="vector-icon" viewBox="0 0 24 24"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>' : i === 1 ? '<svg class="vector-icon" viewBox="0 0 24 24"><circle cx="9" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="17" cy="10" r="2.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3.5 19c.5-3 2.4-4.5 5.5-4.5s5 1.5 5.5 4.5M14.5 15c2.9-.4 5 .9 5.8 3.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>' : '<svg class="vector-icon" viewBox="0 0 24 24"><path d="M20.8 8.7c0 5.2-8.8 10.2-8.8 10.2S3.2 13.9 3.2 8.7A4.7 4.7 0 0 1 12 6.1a4.7 4.7 0 0 1 8.8 2.6Z" fill="currentColor"/></svg>')}</div>
         <h3>Update ${i + 1}</h3>
@@ -1601,8 +1622,8 @@ document.addEventListener("DOMContentLoaded", () => {
   updatesBack.addEventListener("click", closeUpdates);
 
 
-  rightArrow.addEventListener("click", () => { setActive((activeIndex + 1) % dots.length); startAutoplay(); });
-  leftArrow.addEventListener("click", () => { setActive((activeIndex - 1 + dots.length) % dots.length); startAutoplay(); });
+  rightArrow.addEventListener("click", () => { if(!dots.length) return; setActive((activeIndex + 1) % dots.length); startAutoplay(); });
+  leftArrow.addEventListener("click", () => { if(!dots.length) return; setActive((activeIndex - 1 + dots.length) % dots.length); startAutoplay(); });
   dots.forEach((dot, i) => dot.addEventListener("click", () => { setActive(i); startAutoplay(); }));
 
   updateReadMore();
@@ -1900,8 +1921,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if(e.target.closest("#profileBtn")){
       if(window.OBGHBelievers && typeof window.OBGHBelievers.openAccount === "function"){
         window.OBGHBelievers.openAccount();
-      } else {
-        showToast("Loading your account…");
       }
     }
   });
@@ -2110,6 +2129,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return list.filter(song =>
       (song.title || "").toLowerCase().includes(q) ||
       (song.snippet || "").toLowerCase().includes(q) ||
+      (song.lyrics || "").toLowerCase().includes(q) ||
       String(song.num).includes(q)
     );
   }

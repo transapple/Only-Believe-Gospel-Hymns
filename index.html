@@ -3229,7 +3229,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 .bc-follow-row-item{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line)}
 .bc-follow-row-item:last-child{border-bottom:0}
 .bc-follow-row-item .bc-person{flex:1;min-width:0}
-.bc-account-banner{background:#fff8e6;border:1px solid #f3dfaa;color:#6c520b;border-radius:14px;padding:11px 12px;font-size:12px;line-height:1.45;margin-bottom:10px}
 .bc-check{display:flex;gap:8px;align-items:flex-start;font-size:11.5px;color:var(--ink-soft);line-height:1.4}.bc-check input{margin-top:2px}
 .bc-call-log{display:table;margin:8px auto;background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-size:11.5px;color:var(--ink-soft)}
 .bc-rec-bar{display:flex;align-items:center;gap:8px;background:var(--card);border-top:1px solid var(--line);padding:9px;position:sticky;bottom:0}
@@ -3315,6 +3314,20 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   function isRealId(id){ return typeof id==="string" && UUID_RE.test(id); }
   function sbProfileId(believerId){ return (typeof believerId==="string" && believerId.indexOf("sb:")===0) ? believerId.slice(3) : null; }
   function myProfileId(){ return db.account && db.account.connectProfileId || null; }
+  // Self-heal: if the account was saved locally but its connect_profiles row
+  // never made it to Supabase (e.g. the upsert failed when the account was
+  // created), posting would otherwise skip Supabase forever because
+  // db.account.connectProfileId stays empty. Re-attempt the upsert here,
+  // right before a post/comment goes out, using the account details we
+  // already have locally, and adopt the id it returns.
+  async function ensureConnectProfile(){
+    if(db.account && db.account.connectProfileId) return db.account.connectProfileId;
+    if(!db.account) return null;
+    const a=db.account;
+    const row=await window.OBGH_DB.upsertConnectProfile({ id:a.connectProfileId, name:a.name, username:a.username, church:a.church, pastor:a.pastor, bio:a.bio, avatarUrl:a.avatar });
+    if(row && row.id){ db.account.connectProfileId=row.id; save(); return row.id; }
+    return null;
+  }
   // Merge in real testimonies/comments posted from other devices (or via the
   // admin app).
   async function loadLivePosts(){
@@ -3574,7 +3587,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     let list=(db.believers||[]).filter(b=>!q || [b.name,b.username,b.church,b.pastor,b.bio].join(" ").toLowerCase().includes(q));
     const me=db.account;
     bcBody.innerHTML=`
-      ${me?`<div class="bc-account-banner"><strong>Signed in as ${esc(me.name)}</strong><br>@${esc(me.username)} • ${esc(me.church||"Church not added")}<br><button class="bc-btn light" id="editAccount" style="margin-top:7px">Edit profile</button> <button class="bc-btn danger" id="deleteAccount">Delete local account</button></div>`:""}
       <div class="bc-tabs">
         <button class="bc-tab ${db.currentTab==="chats"?"active":""}" data-tab="chats">Chats</button>
         <button class="bc-tab ${db.currentTab==="wall"?"active":""}" data-tab="wall">Wall</button>
@@ -3835,21 +3847,52 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       const saveBtn=$("mSave"); saveBtn.disabled=true; saveBtn.textContent="Saving…";
       const imageUrl = postImageData ? await window.OBGH_DB.uploadMedia(postImageData, "posts") : "";
       if(editing){
+        if(isRealId(existingPost.id)){
+          const ok = await window.OBGH_DB.updatePost({ id: existingPost.id, text, verse, imageUrl: imageUrl||null });
+          if(!ok){
+            saveBtn.disabled=false; saveBtn.textContent="Save changes";
+            toast("Couldn't save your changes — please try again.");
+            return;
+          }
+        }else{
+          // This post predates the fix and never made it to Supabase — post it
+          // for real now instead of leaving the edit stuck local-only.
+          const authorId = await ensureConnectProfile();
+          const row = authorId ? await window.OBGH_DB.createPost({ authorId, text, verse, imageUrl: imageUrl||null }) : null;
+          if(!row){
+            saveBtn.disabled=false; saveBtn.textContent="Save changes";
+            toast("Couldn't reach the server to save your testimony — check your connection and try again.");
+            return;
+          }
+          existingPost.id=row.id;
+        }
         existingPost.text=text;
         existingPost.verse=verse;
         existingPost.image=imageUrl;
         existingPost.edited=true;
         save();closeModal();renderWall();toast("Testimony updated");
-        if(isRealId(existingPost.id)){
-          window.OBGH_DB.updatePost({ id: existingPost.id, text, verse, imageUrl: imageUrl||null }).catch(()=>{});
-        }
+        loadLivePosts();
       }else{
-        const p={id:uid("post"),authorId:"me",text,verse,image:imageUrl,createdAt:now(),likes:0,liked:false,comments:[]};
-        db.posts.unshift(p);save();closeModal();renderWall();toast("Testimony shared");
-        if(db.account && db.account.connectProfileId){
-          const row = await window.OBGH_DB.createPost({ authorId: db.account.connectProfileId, text, verse, imageUrl: imageUrl||null });
-          if(row){ p.id = row.id; save(); } // adopt the server id so likes/comments attach correctly
+        // Post straight to Supabase first, so what shows on the wall is always
+        // backed by a real, synced row — never a local-only post that can
+        // silently fail to save and vanish on the next refresh.
+        const authorId = await ensureConnectProfile();
+        if(!authorId){
+          saveBtn.disabled=false; saveBtn.textContent="Publish";
+          toast("Couldn't reach the server to share your testimony — check your connection and try again.");
+          return;
         }
+        const row = await window.OBGH_DB.createPost({ authorId, text, verse, imageUrl: imageUrl||null });
+        if(!row){
+          saveBtn.disabled=false; saveBtn.textContent="Publish";
+          toast("Couldn't save your testimony — please try again.");
+          return;
+        }
+        const p={id:row.id,authorId:"me",text,verse,image:imageUrl,createdAt:new Date(row.created_at).getTime(),likes:0,liked:false,comments:[]};
+        db.posts.unshift(p);save();closeModal();renderWall();toast("Testimony shared");
+        // Immediately re-sync from Supabase so the wall (and every screen that
+        // reads db.posts) reflects the confirmed server state right away.
+        loadLivePosts();
       }
     };
   }
@@ -4427,8 +4470,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const chat=e.target.closest("[data-chat]");if(chat){openChat(chat.dataset.chat);return}
     const profile=e.target.closest("[data-profile]");if(profile){openBelieverProfile(profile.dataset.profile);return}
     if(e.target.id==="openWallMini"){openWall();return}
-    if(e.target.id==="editAccount"){openAccount(db.account);return}
-    if(e.target.id==="deleteAccount"){appConfirm("Delete Account","Delete this believer account and profile everywhere? This cannot be undone.",()=>{if(deleteMyAccount()){renderBelievers();toast("Account deleted")}});}
     if(e.target.closest("#bcTrashBtn")){openAccountSettings();return}
     const flist=e.target.closest("[data-followlist]");if(flist){openFollowList(flist.dataset.followlist);return}
   });

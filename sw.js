@@ -3,7 +3,7 @@
    - Keeps a copy of the app so it still opens with no signal. */
 
 const CACHE_PREFIX = "only-believe-hymns-";
-const CACHE = CACHE_PREFIX + "v3";
+const CACHE = CACHE_PREFIX + "v4";
 const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
 
 self.addEventListener("install", (event) => {

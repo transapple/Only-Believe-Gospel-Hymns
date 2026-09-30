@@ -1441,6 +1441,15 @@ window.OBGH_DB = (function(){
     if(error){ console.error("OBGH_DB.fetchFollowingProfiles", error); return []; }
     return fetchProfilesByIds((data||[]).map(r=>r.followee_id));
   }
+  // Followers / following totals for every profile, from one query: { profileId: {followers, following} }
+  async function fetchFollowCounts(){
+    const { data, error } = await sb.from("follows").select("follower_id, followee_id").limit(50000);
+    if(error){ console.error("OBGH_DB.fetchFollowCounts", error); return null; }
+    const m={};
+    const at=id=>m[id]||(m[id]={followers:0,following:0});
+    (data||[]).forEach(r=>{ at(r.followee_id).followers++; at(r.follower_id).following++; });
+    return m;
+  }
   // ---- Presence (online / last seen), WhatsApp-style ----
   // Requires a `last_seen timestamptz` column on connect_profiles (see chat reply for SQL).
   async function touchPresence(profileId){
@@ -1673,7 +1682,7 @@ window.OBGH_DB = (function(){
     fetchUpdateStats, fetchMyUpdateActions, likeUpdate, viewUpdate, fetchUpdateComments, commentUpdate, isRestricted, registerBeliever,
     upsertConnectProfile, fetchPosts, createPost, createComment, submitReport, updatePost, deletePost,
     likePost, unlikePost, likeComment, unlikeComment, fetchMyLikes, follow, unfollow, fetchFollowing,
-    fetchFollowers, fetchFollowingProfiles,
+    fetchFollowers, fetchFollowingProfiles, fetchFollowCounts,
     touchPresence, fetchLastSeen, onPresenceChange, isOnline, currentOnlineIds, joinPresence, leavePresence,
     deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent, onInboxEvent, markRead, markDelivered,
     updateComment, deleteComment,
@@ -3791,7 +3800,7 @@ document.addEventListener("DOMContentLoaded", () => {
 .bc-head-main{flex:1;min-width:0}.bc-title{font-size:18px;font-weight:850;color:var(--blue-2)}.bc-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px}
 .bc-body{flex:1;overflow:auto;padding:12px 12px 92px;-webkit-overflow-scrolling:touch}
 .bc-body::-webkit-scrollbar{display:none}
-.bc-tabs{display:flex;gap:7px;overflow:auto;padding:2px 0 10px}.bc-tabs::-webkit-scrollbar{display:none}
+.bc-tabs{display:flex;gap:14px;overflow:auto;padding:2px 0 10px}.bc-tabs::-webkit-scrollbar{display:none}
 .bc-tab{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:8px 13px;font:700 12px inherit;color:var(--ink-soft);white-space:nowrap}
 .bc-tab.active{background:var(--blue);color:#fff;border-color:var(--blue)}
 .bc-search{display:flex;align-items:center;gap:8px;background:var(--card);border:1px solid var(--line);border-radius:13px;padding:10px 12px;margin-bottom:10px}
@@ -3902,12 +3911,15 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 .bc-status-dot.online{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
 .bc-sub-status.online{color:#1b9e52;font-weight:700}
 /* Followers / Following */
-.bc-tabs-row{display:flex;align-items:center;gap:8px;padding-bottom:10px}
-.bc-tabs-row .bc-tabs{flex:1;min-width:0;padding:2px 0}
-.bc-tabs-row .bc-tab{padding:8px 10px}
-.bc-follow-mini{flex:none;display:flex;flex-direction:column;gap:3px}
-.bc-follow-stat{display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:750 10.5px inherit;color:var(--ink);white-space:nowrap}
-.bc-follow-stat span{color:var(--blue);font-weight:900}
+.bc-fc{display:flex;margin-top:10px;padding-top:9px;border-top:1px solid var(--line)}
+.bc-fc-col{flex:1;text-align:center}
+.bc-fc-col[data-followlist]{cursor:pointer}
+.bc-fc-label{font-size:11.5px;font-weight:750;color:var(--ink-soft)}
+.bc-fc-num{font-size:16px;font-weight:900;color:var(--blue);margin-top:1px}
+/* WhatsApp-style chat header: photo, then name + status */
+.bc-chat-headrow{display:flex;align-items:center;gap:10px;min-width:0}
+.bc-chat-headrow .bc-avatar{width:40px;height:40px;font-size:14px}
+.bc-chat-headtext{min-width:0}
 /* Message ticks */
 .bc-msg-meta{display:flex;align-items:center;gap:4px;font-size:9px;margin-top:3px}
 .bc-msg-meta.mine{justify-content:flex-end}
@@ -3915,8 +3927,16 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 .bc-ticks{display:inline-flex;align-items:center;line-height:0}
 .bc-ticks svg{display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .bc-ticks.sent{color:#8b90a3}
-.bc-ticks.delivered{color:#22c55e}
-.bc-ticks.read{color:#2563eb}
+.bc-ticks.delivered{color:#8b90a3}
+.bc-ticks.read{color:#1d9bf0}
+/* Profile picture beside every message (WhatsApp / Messenger style) */
+.bc-msg-row{display:flex;align-items:flex-end;gap:6px;margin:5px 0}
+.bc-msg-row.mine{justify-content:flex-end}
+.bc-msg-row .bc-chat-bubble{margin:0;max-width:calc(100% - 40px);min-width:0}
+.bc-msg-av{flex:none;display:inline-flex}
+.bc-msg-av .bc-avatar{width:28px;height:28px;font-size:10px;overflow:hidden}
+.bc-msg-av .bc-avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.bc-chat-preview .bc-ticks{margin-right:4px;vertical-align:-2px}
 .bc-follow-tabs{display:flex;gap:6px;margin:2px 0 12px;background:var(--paper);border-radius:999px;padding:3px}
 .bc-follow-tab{flex:1;border:0;background:transparent;border-radius:999px;padding:8px 6px;font:800 12.5px inherit;color:var(--ink-soft)}
 .bc-follow-tab.active{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(20,25,60,.08)}
@@ -4186,6 +4206,9 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     save();
     const me=myProfileId(), them=sbProfileId(id);
     if(me && them){
+      const d=nowFollowing?1:-1;
+      const a=followCounts[me]||(followCounts[me]={followers:0,following:0}), c=followCounts[them]||(followCounts[them]={followers:0,following:0});
+      a.following=Math.max(0,a.following+d); c.followers=Math.max(0,c.followers+d); paintFollowCounts();
       const call = nowFollowing ? window.OBGH_DB.follow({followerId:me, followeeId:them}) : window.OBGH_DB.unfollow({followerId:me, followeeId:them});
       call.catch(()=>{});
     }
@@ -4695,32 +4718,43 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     toast("You've been logged out");
   }
 
+  // Followers / Following totals shown on each believer's card (number centred under its label).
+  let followCounts={};
+  function fcOf(pid){ return followCounts[pid]||{followers:0,following:0}; }
+  function paintFollowCounts(){
+    document.querySelectorAll("[data-fc]").forEach(el=>{ const [pid,kind]=el.dataset.fc.split("|"); el.textContent=String(fcOf(pid)[kind]); });
+  }
+  async function refreshFollowCounts(){
+    const m=await window.OBGH_DB.fetchFollowCounts();
+    if(m){ followCounts=m; paintFollowCounts(); }
+  }
+  function followStatsHTML(b){
+    const own=b.id==="me";
+    const pid=own?myProfileId():sbProfileId(b.id); if(!pid) return "";
+    const col=(kind,label)=>`<div class="bc-fc-col" ${own?`data-followlist="${kind}"`:""}><div class="bc-fc-label">${label}</div><div class="bc-fc-num" data-fc="${pid}|${kind}">${fcOf(pid)[kind]}</div></div>`;
+    return `<div class="bc-fc">${col("followers","Followers")}${col("following","Following")}</div>`;
+  }
   function renderBelievers(){
     const q=(window._bcQuery||"").toLowerCase().trim();
     let list=(db.believers||[]).filter(b=>!q || [b.name,b.username,b.church,b.pastor,b.bio].join(" ").toLowerCase().includes(q));
     list=list.slice().sort((x,y)=>(y.verified?1:0)-(x.verified?1:0));
     const me=db.account;
     bcBody.innerHTML=`
-      <div class="bc-tabs-row">
-        <div class="bc-tabs">
-          <button class="bc-tab ${db.currentTab==="chats"?"active":""}" data-tab="chats">Chats</button>
-          <button class="bc-tab ${db.currentTab==="wall"?"active":""}" data-tab="wall">Wall</button>
-          <button class="bc-tab ${db.currentTab==="find"?"active":""}" data-tab="find">Find Believers</button>
-        </div>
-        ${me?`<div class="bc-follow-mini">
-          <button class="bc-follow-stat" data-followlist="followers" type="button">Followers <span id="followerCountEl">${followerCount===null?"…":followerCount}</span></button>
-          <button class="bc-follow-stat" data-followlist="following" type="button">Following <span id="followingCountEl">${(db.following||[]).length}</span></button>
-        </div>`:""}
+      <div class="bc-tabs">
+        <button class="bc-tab ${db.currentTab==="chats"?"active":""}" data-tab="chats">Chats</button>
+        <button class="bc-tab ${db.currentTab==="wall"?"active":""}" data-tab="wall">Wall</button>
+        <button class="bc-tab ${db.currentTab==="find"?"active":""}" data-tab="find">Find Believers</button>
       </div>
       ${db.currentTab==="find"?`
-        <div class="bc-search" style="display:flex;align-items:center;gap:8px"><input id="bcSearch" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search name, church or pastor" value="${esc(window._bcDraft!==undefined?window._bcDraft:(window._bcQuery||""))}" style="flex:1"><button class="bc-iconbtn" id="bcSearchBtn" type="button" title="Search" aria-label="Search" style="font-weight:800;color:var(--blue)">Search</button><button class="bc-iconbtn" id="bcTrashBtn" type="button" title="Account settings">⚙</button></div>
+        <div class="bc-search" style="display:flex;align-items:center;gap:8px"><input id="bcSearch" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search name, church or pastor" value="${esc(window._bcDraft!==undefined?window._bcDraft:(window._bcQuery||""))}" style="flex:1"><button class="bc-iconbtn" id="bcTrashBtn" type="button" title="Account settings">⚙</button></div>
         ${list.length?list.map(b=>`
           <article class="bc-card" data-chat="${esc(b.id)}" style="cursor:pointer">
             <div class="bc-profile"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}</div></div></div>
+            ${followStatsHTML(b)}
           </article>`).join(""):`<div class="bc-empty"><strong>No believers found</strong>Try another name, church or pastor.</div>`}
       `:db.currentTab==="chats"?renderChatList():renderWallMini()}
     `;
-    if(me && (db.currentTab==="find" || followerCount===null)) refreshFollowerCount();
+    if(me && db.currentTab==="find") refreshFollowCounts();
   }
   function chatTimeLabel(ts){
     const d=new Date(ts), n=new Date();
@@ -4735,7 +4769,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       .filter(r=>r.b)
       .sort((x,y)=>(y.last?.ts||0)-(x.last?.ts||0));
     if(!rows.length)return `<div class="bc-empty"><strong>No chats yet</strong>Find a believer and tap Private chat to start a conversation.</div>`;
-    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${nameBadge(b.name,b)}${id==="me"?" (You)":""}</strong><span class="bc-chat-preview">${esc(last?.text||"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
+    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${nameBadge(b.name,b)}${id==="me"?" (You)":""}</strong><span class="bc-chat-preview">${last&&last.mine?ticksHTML(last):""}${esc(last?(last.text||(last.type==="voice"?"🎙 Voice message":last.type==="call"?"📞 Voice call":"")):"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
   }
   function renderWallMini(){
     return `<div class="bc-card"><strong>Testimony Wall</strong><p class="bc-meta" style="margin-top:5px">A channel-style feed for testimonies and spiritual encouragement.</p><button class="bc-btn primary" id="openWallMini" style="margin-top:10px">Open Testimony Wall</button></div>`;
@@ -5050,11 +5084,12 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   let editingMsgId=null;
   function ticksHTML(m){
     if(!m.mine || !m.status) return "";
-    const n=m.status==="read"?3:(m.status==="delivered"?2:1);
-    const label=m.status==="read"?"Read":(m.status==="delivered"?"Delivered":"Sent");
-    const w=12+4*(n-1);
+    // ONE grey tick = sent, TWO grey ticks = received, TWO blue ticks = read.
+    const n=(m.status==="read"||m.status==="delivered")?2:1;
+    const label=m.status==="read"?"Read":(m.status==="delivered"?"Received":"Sent");
+    const w=n===2?16.5:12;   // second tick overlaps the first, like WhatsApp
     let paths="";
-    for(let i=0;i<n;i++) paths+=`<path d="M${1+4*i} 6.5l3.5 3.5L${11+4*i} 3"/>`;
+    for(let i=0;i<n;i++) paths+=`<path d="M${+(1+4.5*i).toFixed(1)} 6.5l3.5 3.5L${+(11+4.5*i).toFixed(1)} 3"/>`;
     return `<span class="bc-ticks ${m.status}" title="${label}" aria-label="${label}"><svg width="${w}" height="12" viewBox="0 0 ${w} 12">${paths}</svg></span>`;
   }
   function msgMetaHTML(m){
@@ -5073,14 +5108,21 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       if(el){ const old=el.querySelector(".bc-ticks"); if(old) old.remove(); el.insertAdjacentHTML("beforeend",ticksHTML(m)); }
     }
   }
+  function msgAvatarHTML(m){
+    const who = m.mine ? (db.account ? {name:db.account.name, avatar:db.account.avatar} : believer("me")) : believer(db.currentChat);
+    return `<span class="bc-msg-av">${avatar(who)}</span>`;
+  }
+  function wrapMsg(m,inner){
+    return `<div class="bc-msg-row ${m.mine?"mine":""}">${m.mine?"":msgAvatarHTML(m)}${inner}${m.mine?msgAvatarHTML(m):""}</div>`;
+  }
   function renderChatMessage(m){
     const mineAttr=`data-msg="${esc(m.id||"")}" data-msg-mine="${m.mine?"1":"0"}"`;
     if(m.type==="call")return `<div class="bc-call-log" ${mineAttr}>📞 Voice call • ${callDuration(m.duration||0)}</div>`;
-    if(m.type==="voice")return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><audio controls src="${esc(m.audio)}" style="max-width:220px;display:block"></audio>${msgMetaHTML(m)}</div>`;
+    if(m.type==="voice")return wrapMsg(m,`<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><audio controls src="${esc(m.audio)}" style="max-width:100%;display:block"></audio>${msgMetaHTML(m)}</div>`);
     if(m.id && editingMsgId===m.id){
-      return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><div class="tw-edit-box"><textarea id="msg-edit-ta-${esc(m.id)}">${esc(m.text)}</textarea><div class="tw-reply-actions"><button class="tw-reply-cancel" data-cancel-msg-edit="${esc(m.id)}" type="button">Cancel</button><button class="bc-save" data-save-msg-edit="${esc(m.id)}" type="button">Save</button></div></div></div>`;
+      return wrapMsg(m,`<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><div class="tw-edit-box"><textarea id="msg-edit-ta-${esc(m.id)}">${esc(m.text)}</textarea><div class="tw-reply-actions"><button class="tw-reply-cancel" data-cancel-msg-edit="${esc(m.id)}" type="button">Cancel</button><button class="bc-save" data-save-msg-edit="${esc(m.id)}" type="button">Save</button></div></div></div>`);
     }
-    return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}>${esc(m.text)}${msgMetaHTML(m)}</div>`;
+    return wrapMsg(m,`<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}>${esc(m.text)}${msgMetaHTML(m)}</div>`);
   }
   function ensureMsgIds(arr){
     let changed=false;
@@ -5108,7 +5150,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       else if(r.delivered_at) setMsgStatus(chatId,r.id,"delivered");
     }
   });
-  // Chatting with yourself: nobody else is involved, so every message is instantly "read" (3 blue ticks).
+  // Chatting with yourself: nobody else is involved, so every message is instantly "read" (2 blue ticks).
   function isSelfChat(id){ return id==="me" || (!!sbProfileId(id) && sbProfileId(id)===myProfileId()); }
   function isLiveChat(id){ return !!(myProfileId() && sbProfileId(id)); }
   function appendLocalMsg(id,msg){ db.chats[id]=db.chats[id]||[]; db.chats[id].push(msg); save(); }
@@ -5140,11 +5182,11 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     db.currentChat=id;save();openScreen(chatScreen);
     history.pushState({ obghScreen: "believers", obghChat: true }, "", location.href);
     if(isLiveChat(id)){
-      chatHead.innerHTML=`<div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub-status" id="chatStatusLine"><span class="bc-status-dot"></span> …</div>`;
+      chatHead.innerHTML=`<div class="bc-chat-headrow"><span data-profile="${esc(id)}" style="display:inline-flex;cursor:pointer;flex:none" role="button" aria-label="View profile">${avatar(b)}</span><div class="bc-chat-headtext"><div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub-status" id="chatStatusLine"><span class="bc-status-dot"></span> …</div></div></div>`;
       chatPresenceUnsub=window.OBGH_DB.onPresenceChange(()=>refreshChatStatus(id));
       refreshChatStatus(id);
     } else {
-      chatHead.innerHTML=`<div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub">@${esc(b.username)} • ${id==="me"?"This is you":"Private chat"}</div>`;
+      chatHead.innerHTML=`<div class="bc-chat-headrow"><span data-profile="${esc(id)}" style="display:inline-flex;cursor:pointer;flex:none" role="button" aria-label="View profile">${avatar(b)}</span><div class="bc-chat-headtext"><div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub">@${esc(b.username)} • ${id==="me"?"This is you":"Private chat"}</div></div></div>`;
     }
     if(isLiveChat(id)){
       const me=myProfileId(), them=sbProfileId(id);
@@ -5819,6 +5861,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   bcBody.addEventListener("click",e=>{
     const tab=e.target.closest("[data-tab]");if(tab){db.currentTab=tab.dataset.tab;save();renderBelievers();if(db.currentTab==="find")loadAllBelievers();return}
     const profile=e.target.closest("[data-profile]");if(profile){openBelieverProfile(profile.dataset.profile);return}
+    const flist0=e.target.closest("[data-followlist]");if(flist0){openFollowList(flist0.dataset.followlist);return}
     const chat=e.target.closest("[data-chat]");if(chat){openChat(chat.dataset.chat);return}
     if(e.target.id==="openWallMini"){openWall();return}
     if(e.target.closest("#bcTrashBtn")){openAccountSettings();return}

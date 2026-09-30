@@ -3469,8 +3469,8 @@ body[data-app-theme="dark"] .tw-verse{color:var(--ink);}
 .au-btn{width:100%;border:0;border-radius:12px;padding:13px;background:var(--blue);color:#fff;font:850 14px inherit;margin-top:10px}
 .au-btn:disabled{opacity:.6}
 .tw-featured{display:inline-block;font:800 10px inherit;letter-spacing:.04em;text-transform:uppercase;color:#1E63E9;background:rgba(30,99,233,.1);border-radius:999px;padding:2px 8px;margin:0 0 8px}
-.vbadge{width:18px;height:18px;display:inline-block;vertical-align:-2px;margin-left:6px;flex:none}
-.bc-title .vbadge,.bc-profile h3 .vbadge{width:19px;height:19px;vertical-align:-3px}
+.nb{white-space:nowrap}.vbadge{width:max(12px,1em);height:max(12px,1em);display:inline-block;vertical-align:-.16em;margin-left:.4em;flex:none}
+.bc-title .vbadge,.bc-profile h3 .vbadge,.as-name .vbadge{width:.9em;height:.9em;vertical-align:-.14em}
 .au-form{display:block}
 .au-sec{font:850 11px inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-2);margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .au-sec:first-child{margin-top:2px}
@@ -3785,7 +3785,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       return `<div class="tw-comment-row ${depth>0?"is-reply":""}" data-comment-row="${esc(d.id)}" data-comment-mine="${d.authorId==="me"?"1":"0"}" style="padding-left:${Math.min(depth,3)*4}px">
         ${avatar(cb||{name:d.name})}
         <div class="tw-comment-content">
-          <div class="tw-comment-meta"><div class="tw-comment-name">${esc(d.name)}${vBadge(cb||d.authorId)} <span class="bc-meta">@${esc(d.username)}</span></div></div>
+          <div class="tw-comment-meta"><div class="tw-comment-name">${nameBadge(d.name,cb||d.authorId)}<span class="bc-meta" style="display:block;margin-top:1px">@${esc(d.username)}</span></div></div>
           ${editing?`<div class="tw-edit-box"><textarea id="edit-ta-${esc(d.id)}">${esc(d.text)}</textarea><div class="tw-reply-actions"><button class="tw-reply-cancel" data-cancel-edit="${esc(d.id)}" type="button">Cancel</button><button class="bc-save" data-save-edit="${esc(d.id)}" type="button">Save</button></div></div>`:`<div class="tw-comment-text">${esc(d.text)}</div>`}
           <div class="tw-comment-tools">
             <button class="tw-comment-tool ${d.liked?"active":""}" data-comment-like="${esc(d.id)}" type="button">♥ ${d.likes||0}</button>
@@ -3902,6 +3902,15 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   // Blue mark = a verified account. Anyone can register; the TFG admin verifies the ones who
   // perform well (sets connect_profiles.verified). The app itself can never set this flag.
+  // Name + badge: the badge is glued to the LAST word of the name (never alone on its own line),
+  // so if a long name wraps, the badge simply follows the end of the name.
+  function nameBadge(name, idOrB){
+    const n = String(name==null?"":name).trim(), badge = vBadge(idOrB);
+    if(!badge) return esc(n);
+    const i = n.search(/\s\S*$/);
+    const head = i>=0 ? esc(n.slice(0,i+1)) : "", last = esc(i>=0 ? n.slice(i+1) : n);
+    return head + '<span class="nb">' + last + badge + '</span>';
+  }
   // Seven badge colours the admin can give (connect_profiles.badge_color); blue is the default.
   const BADGE_HEX={ blue:"#1E63E9", red:"#E53935", green:"#2E9E4F", yellow:"#F5B301", orange:"#F57C00", purple:"#8E44AD", brown:"#8B5A2B" };
   function vBadge(idOrB){
@@ -4264,7 +4273,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         </div>`:""}
         ${list.length?list.map(b=>`
           <article class="bc-card" data-chat="${esc(b.id)}" style="cursor:pointer">
-            <div class="bc-profile"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}</div></div></div>
+            <div class="bc-profile"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}</div></div></div>
           </article>`).join(""):`<div class="bc-empty"><strong>No believers found</strong>Try another name, church or pastor.</div>`}
       `:db.currentTab==="chats"?renderChatList():renderWallMini()}
     `;
@@ -4283,7 +4292,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       .filter(r=>r.b)
       .sort((x,y)=>(y.last?.ts||0)-(x.last?.ts||0));
     if(!rows.length)return `<div class="bc-empty"><strong>No chats yet</strong>Find a believer and tap Private chat to start a conversation.</div>`;
-    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${esc(b.name)}${vBadge(b)}${id==="me"?" (You)":""}</strong><span class="bc-chat-preview">${esc(last?.text||"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
+    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${nameBadge(b.name,b)}${id==="me"?" (You)":""}</strong><span class="bc-chat-preview">${esc(last?.text||"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
   }
   function renderWallMini(){
     return `<div class="bc-card"><strong>Testimony Wall</strong><p class="bc-meta" style="margin-top:5px">A channel-style feed for testimonies and spiritual encouragement.</p><button class="bc-btn primary" id="openWallMini" style="margin-top:10px">Open Testimony Wall</button></div>`;
@@ -4298,7 +4307,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         const hasImage=!!p.image;
         const mine=p.authorId==="me";
         return `<article class="bc-card" data-post="${esc(p.id)}" data-post-mine="${mine?"1":"0"}">${b.verified?`<div class="tw-featured">Featured</div>`:""}
-          <div class="tw-post-head">${avatar(b)}<div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div><button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button></div>
+          <div class="tw-post-head">${avatar(b)}<div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div><button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button></div>
           <div class="tw-body ${hasImage?"has-media":""}">
             ${hasImage?`<img class="tw-media" src="${esc(p.image)}" alt="Shared spiritual content" data-open-image="${esc(p.id)}">`:""}
             <div class="tw-content">
@@ -4320,7 +4329,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const posts=believerPosts(id);
     modal.innerHTML=`<div class="bc-profile-modal">
       <div class="bc-profile-large">${avatar(b)}</div>
-      <h3 style="margin:10px 0 2px">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</h3>
+      <h3 style="margin:10px 0 2px">${nameBadge(b.name,b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</h3>
       <div class="bc-meta" style="margin-bottom:12px">@${esc(b.username)}</div>
       <div class="bc-detail-grid">
         <div><span>Church</span><strong>${esc(b.church||"Not listed")}</strong></div>
@@ -4373,7 +4382,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       listEl.innerHTML=ids.map(bid=>{
         const b=believer(bid);
         return `<div class="bc-follow-row-item">${avatar(b)}
-          <div class="bc-person" data-profile="${esc(bid)}"><div class="bc-name">${esc(b.name)}${vBadge(b)}</div><div class="bc-meta">@${esc(b.username)}</div></div>
+          <div class="bc-person" data-profile="${esc(bid)}"><div class="bc-name">${nameBadge(b.name,b)}</div><div class="bc-meta">@${esc(b.username)}</div></div>
           <button class="tw-follow ${isFollowing(bid)?"following":""}" data-follow="${esc(bid)}" type="button">${isFollowing(bid)?"Following":"Follow"}</button>
         </div>`;
       }).join("");
@@ -4480,7 +4489,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       .as-row.danger .as-ic{background:#D13438}
     </style>
     <div class="as-wrap">
-      <div class="as-head"><div class="as-av">${avatar(a)}</div><div class="as-name">${esc(a.name)}${vBadge(a)}</div><div class="as-user">@${esc(a.username)}</div></div>
+      <div class="as-head"><div class="as-av">${avatar(a)}</div><div class="as-name">${nameBadge(a.name,a)}</div><div class="as-user">@${esc(a.username)}</div></div>
       <div class="as-title">Account</div>
       <div class="as-group">
         <button class="as-row" id="asEdit" type="button"><span class="as-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="as-lbl">Edit profile</span><svg class="as-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
@@ -4646,11 +4655,11 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     db.currentChat=id;save();openScreen(chatScreen);
     history.pushState({ obghScreen: "believers", obghChat: true }, "", location.href);
     if(isLiveChat(id)){
-      chatHead.innerHTML=`<div class="bc-title">${esc(b.name)}${vBadge(b)}</div><div class="bc-sub-status" id="chatStatusLine"><span class="bc-status-dot"></span> …</div>`;
+      chatHead.innerHTML=`<div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub-status" id="chatStatusLine"><span class="bc-status-dot"></span> …</div>`;
       chatPresenceUnsub=window.OBGH_DB.onPresenceChange(()=>refreshChatStatus(id));
       refreshChatStatus(id);
     } else {
-      chatHead.innerHTML=`<div class="bc-title">${esc(b.name)}${vBadge(b)}</div><div class="bc-sub">@${esc(b.username)} • ${id==="me"?"This is you":"Private chat"}</div>`;
+      chatHead.innerHTML=`<div class="bc-title">${nameBadge(b.name,b)}</div><div class="bc-sub">@${esc(b.username)} • ${id==="me"?"This is you":"Private chat"}</div>`;
     }
     if(isLiveChat(id)){
       const me=myProfileId(), them=sbProfileId(id);

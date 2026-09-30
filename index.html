@@ -3655,7 +3655,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     <button class="bc-iconbtn" id="twRules" type="button">ⓘ</button>
   </header>
   <div class="bc-body" id="twBody"></div>
-  <button class="bc-fab" id="twFab" type="button">＋ Share testimony</button>
 </section>
 
 <section class="bc-screen" id="chatScreen" aria-hidden="true">
@@ -4621,8 +4620,8 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const editing=!!existingPost;
     let postImageData=editing?(existingPost.image||""):"";
     modal.innerHTML=`<h3>${editing?"Edit testimony":"Share a testimony"}</h3><p class="help">Only spiritual content belongs on the wall. Avoid private information about other people.</p>
-      <div class="bc-field"><label>Testimony</label><textarea id="pText" class="bc-field-compact" placeholder="Tell believers what God has done, what you are learning, or an encouragement from Scripture.">${editing?esc(existingPost.text):""}</textarea></div>
-      <div class="bc-field"><label>Scripture reference (optional)</label><input id="pVerse" placeholder="e.g. Psalm 23:1" value="${editing?esc(existingPost.verse||""):""}"></div>
+      <div class="bc-field"><label>Testimony</label><textarea id="pText" class="bc-field-compact">${editing?esc(existingPost.text):""}</textarea></div>
+      <div class="bc-field"><label>Scripture reference (optional)</label><input id="pVerse" value="${editing?esc(existingPost.verse||""):""}"></div>
       <div class="bc-field"><label>Photo (optional)</label>
         <div class="bc-image-picker">
           <button type="button" class="bc-btn light" id="pImagePick">Choose from device</button>
@@ -5407,7 +5406,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   $("twBack").onclick=()=>{closeScreens()};
   $("chatBack").onclick=()=>{stopChatSync();openScreen(believerScreen);renderBelievers()};
   $("bcAccountBtn").onclick=()=>openAccountSettings();
-  $("twFab").onclick=openTestimonyComposer;
   $("twRules").onclick=()=>toast("Testimony Wall is for testimonies, Scripture, prayer, worship and Christian encouragement only.");
   twRefreshBtn.onclick=()=>{ if(!requireOnline())return; loadLivePosts(); };
 

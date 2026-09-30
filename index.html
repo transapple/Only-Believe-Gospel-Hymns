@@ -1413,6 +1413,16 @@ window.OBGH_DB = (function(){
     return new Set((data||[]).map(r=>r.followee_id));
   }
   // ---- Followers / Following lists (profiles, not just ids) ----
+  // Every believer profile (newest first) so accounts that have not posted yet are still discoverable.
+  async function fetchAllProfiles(limit){
+    const { data, error } = await sb.from("connect_profiles").select("*").order("created_at",{ascending:false}).limit(limit||500);
+    if(error){
+      const r2 = await sb.from("connect_profiles").select("*").limit(limit||500);
+      if(r2.error){ console.error("OBGH_DB.fetchAllProfiles", r2.error); return []; }
+      return r2.data||[];
+    }
+    return data||[];
+  }
   async function fetchProfilesByIds(ids){
     if(!ids || !ids.length) return [];
     const { data, error } = await sb.from("connect_profiles").select("*").in("id", ids);
@@ -1630,7 +1640,7 @@ window.OBGH_DB = (function(){
     deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent,
     updateComment, deleteComment,
     authReady, usernameTaken, phoneTaken, registerPassword, loginWithPassword, resetPassword, hasPassword,
-    updateBelieverRecord, discardSignup, fetchMyMessages, fetchProfilesByIds };
+    updateBelieverRecord, discardSignup, fetchMyMessages, fetchProfilesByIds, fetchAllProfiles };
 })();
 </script>
 <script>
@@ -4041,6 +4051,15 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       });
       db.posts.sort((a,b)=>b.createdAt-a.createdAt);
     }
+    // Discoverability: add every registered profile (even with zero posts) to Find Believers.
+    try{
+      const allProfiles=await window.OBGH_DB.fetchAllProfiles(500);
+      const meIdAll=myProfileId();
+      allProfiles.forEach(row=>{
+        if(!row||!row.id||row.id===meIdAll) return;
+        upsertBelieverFromProfile(row);
+      });
+    }catch(e){}
     // Pull in this believer's real likes/follows so heart/follow state is accurate
     // across devices instead of only ever reflecting the local button press.
     const me=myProfileId();
@@ -4080,6 +4099,30 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const existing=db.believers.find(b=>b.id===bid);
     if(existing) Object.assign(existing,obj); else db.believers.push(obj);
     return bid;
+  }
+  // Loads every registered believer so anyone can be found (and privately chatted with)
+  // even if they have never posted. Runs whenever Believers / Find Believers is opened.
+  let _allBelieversBusy=false;
+  async function loadAllBelievers(){
+    if(_allBelieversBusy||!window.OBGH_DB||!window.OBGH_DB.fetchAllProfiles) return;
+    _allBelieversBusy=true;
+    try{
+      const rows=await window.OBGH_DB.fetchAllProfiles(500);
+      const meId=myProfileId();
+      let changed=false;
+      rows.forEach(row=>{
+        if(!row||!row.id||(meId&&row.id===meId)) return;
+        const before=db.believers.length;
+        upsertBelieverFromProfile(row);
+        if(db.believers.length!==before) changed=true;
+      });
+      save();
+      if(typeof believerScreen!=="undefined" && believerScreen.classList.contains("open") && db.currentTab==="find"){
+        const active=document.activeElement;
+        if(!(active && active.id==="bcSearch")) renderBelievers();
+      }
+    }catch(e){ console.error("loadAllBelievers", e); }
+    finally{ _allBelieversBusy=false; }
   }
   function isFollowing(id){return (db.following||[]).includes(id)}
   // True for my own account (however it is stored), so no Follow button is ever shown on it.
@@ -4264,11 +4307,17 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   // Verified accounts are boosted: their testimonies sit at the top of everyone's wall
   // (newest first inside each group), and they are listed first in Find Believers.
   function isVerifiedId(id){ const b=id?believer(id):null; return !!(b&&b.verified); }
+  // Reach weighting: a verified account's post counts 10x, everyone else 1x. Each post's
+  // score fades with age (half-life 3 days), so fresh posts from unverified believers rise
+  // above old verified ones, while verified posts stay visible about 10x longer.
+  const VERIFIED_BOOST=10, FEED_HALF_LIFE_H=72;
+  function feedScore(p){
+    const ageH=Math.max(0,(Date.now()-(p.createdAt||0))/3600000);
+    const weight=isVerifiedId(p.authorId)?VERIFIED_BOOST:1;
+    return weight*Math.pow(0.5,ageH/FEED_HALF_LIFE_H);
+  }
   function wallFeed(){
-    return (db.posts||[]).slice().sort((x,y)=>{
-      const vx=isVerifiedId(x.authorId)?1:0, vy=isVerifiedId(y.authorId)?1:0;
-      return (vy-vx) || ((y.createdAt||0)-(x.createdAt||0));
-    });
+    return (db.posts||[]).slice().sort((x,y)=>(feedScore(y)-feedScore(x)) || ((y.createdAt||0)-(x.createdAt||0)));
   }
   function avatar(b){
     if(b && b.avatar) return `<span class="bc-avatar"><img src="${esc(b.avatar)}" alt=""></span>`;
@@ -4597,7 +4646,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   }
 
   function renderBelievers(){
-    const q=(document.getElementById("bcSearch")?.value||"").toLowerCase().trim();
+    const q=(window._bcQuery||"").toLowerCase().trim();
     let list=(db.believers||[]).filter(b=>!q || [b.name,b.username,b.church,b.pastor,b.bio].join(" ").toLowerCase().includes(q));
     list=list.slice().sort((x,y)=>(y.verified?1:0)-(x.verified?1:0));
     const me=db.account;
@@ -4608,7 +4657,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         <button class="bc-tab ${db.currentTab==="find"?"active":""}" data-tab="find">Find Believers</button>
       </div>
       ${db.currentTab==="find"?`
-        <div class="bc-search" style="display:flex;align-items:center;gap:8px">⌕ <input id="bcSearch" placeholder="Search name, church or pastor" value="${esc(q)}" style="flex:1"><button class="bc-iconbtn" id="bcTrashBtn" type="button" title="Account settings">⚙</button></div>
+        <div class="bc-search" style="display:flex;align-items:center;gap:8px"><input id="bcSearch" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search name, church or pastor" value="${esc(window._bcDraft!==undefined?window._bcDraft:(window._bcQuery||""))}" style="flex:1"><button class="bc-iconbtn" id="bcSearchBtn" type="button" title="Search" aria-label="Search" style="font-weight:800;color:var(--blue)">Search</button><button class="bc-iconbtn" id="bcTrashBtn" type="button" title="Account settings">⚙</button></div>
         ${me?`<div class="bc-follow-row">
           <button class="bc-follow-stat" data-followlist="following" type="button">Following <span id="followingCountEl">${(db.following||[]).length}</span></button>
           <button class="bc-follow-stat" data-followlist="followers" type="button">Followers <span id="followerCountEl">${followerCount===null?"…":followerCount}</span></button>
@@ -5654,7 +5703,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   $("twRules").onclick=()=>toast("Testimony Wall is for testimonies, Scripture, prayer, worship and Christian encouragement only.");
   twRefreshBtn.onclick=()=>{ if(!requireOnline())return; loadLivePosts(); };
 
-  function openBelievers(){if(!requireOnline())return;if(!db.account){openAuth(null,"believers");return}db.currentTab="chats";openScreen(believerScreen);renderBelievers();history.pushState({ obghScreen: "believers" }, "", location.href);}
+  function openBelievers(){if(!requireOnline())return;if(!db.account){openAuth(null,"believers");return}db.currentTab="chats";openScreen(believerScreen);renderBelievers();loadAllBelievers();history.pushState({ obghScreen: "believers" }, "", location.href);}
   function openWall(){if(!requireOnline())return;openScreen(testimonyScreen);renderWall();loadLivePosts();startWallPolling();history.pushState({ obghScreen: "believers" }, "", location.href);}
   window.addEventListener("popstate", (e) => {
     const state = e.state;
@@ -5670,14 +5719,31 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   });
 
   bcBody.addEventListener("click",e=>{
-    const tab=e.target.closest("[data-tab]");if(tab){db.currentTab=tab.dataset.tab;save();renderBelievers();return}
+    const tab=e.target.closest("[data-tab]");if(tab){db.currentTab=tab.dataset.tab;save();renderBelievers();if(db.currentTab==="find")loadAllBelievers();return}
     const profile=e.target.closest("[data-profile]");if(profile){openBelieverProfile(profile.dataset.profile);return}
     const chat=e.target.closest("[data-chat]");if(chat){openChat(chat.dataset.chat);return}
     if(e.target.id==="openWallMini"){openWall();return}
     if(e.target.closest("#bcTrashBtn")){openAccountSettings();return}
     const flist=e.target.closest("[data-followlist]");if(flist){openFollowList(flist.dataset.followlist);return}
   });
-  bcBody.addEventListener("input",e=>{if(e.target.id==="bcSearch")renderBelievers()});
+  function runBelieverSearch(){
+    const inp=document.getElementById("bcSearch");
+    window._bcQuery=window._bcDraft=(inp?inp.value:"").trim();
+    if(inp) inp.blur();            // close the keyboard
+    renderBelievers();
+  }
+  // Typing only stores a draft (no searching, no re-render). Clearing the box shows everyone again.
+  bcBody.addEventListener("input",e=>{
+    if(e.target.id!=="bcSearch") return;
+    window._bcDraft=e.target.value;
+    if(e.target.value===""&&window._bcQuery){ window._bcQuery=""; renderBelievers(); const i=document.getElementById("bcSearch"); if(i) i.focus(); }
+  });
+  bcBody.addEventListener("keydown",e=>{
+    if(e.target.id==="bcSearch" && (e.key==="Enter"||e.keyCode===13)){ e.preventDefault(); runBelieverSearch(); }
+  });
+  bcBody.addEventListener("click",e=>{
+    if(e.target.closest("#bcSearchBtn")){ e.preventDefault(); runBelieverSearch(); }
+  });
 
   twBody.addEventListener("click",e=>{
     if(e.target.id==="twCompose"){openTestimonyComposer();return}

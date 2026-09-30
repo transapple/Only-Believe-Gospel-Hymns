@@ -308,7 +308,7 @@
   }
   .carousel-text-wrap{flex:1; display:flex; flex-direction:column; align-items:stretch; min-width:0;}
   .carousel-text{
-    text-align:left; color:var(--ink-soft); font-weight:400; font-size:13.5px; line-height:1.35;
+    text-align:left; color:var(--ink-soft); font-weight:600; font-size:13.5px; line-height:1.35;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;
   }
   .carousel-text strong{font-weight:800; font-size:15.5px; color:var(--ink); line-height:1.25;}
@@ -428,11 +428,6 @@
 .upd-cbox textarea{width:100%;min-height:64px;border:1.5px solid var(--line);border-radius:12px;padding:9px 11px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
 .upd-cbox button{margin-top:8px;border:0;border-radius:10px;background:var(--blue);color:#fff;padding:8px 16px;font:800 13px inherit;cursor:pointer;}
 .upd-cnote{font-size:12px;color:var(--ink-soft);margin:4px 0 0;}
-.car-actions{display:flex;align-items:center;gap:6px;margin-top:8px;}
-.car-actions[hidden]{display:none;}
-.car-actions .upd-act{padding:4px 10px;font-size:11.5px;gap:5px;}
-.car-actions .upd-act svg,.car-actions .upd-views svg{width:13px;height:13px;}
-.car-actions .upd-views{font-size:11.5px;}
 </style>
 <style>
 /* Hymns list screen */
@@ -716,7 +711,6 @@
             <div class="carousel-text-wrap">
               <p class="carousel-text" id="carouselText">100% free for anyone, anywhere,<br>anytime. No data, no matter.</p>
               <button class="read-more-btn" id="readMoreBtn" type="button">Read more</button>
-              <div class="car-actions" id="carActions" hidden></div>
             </div>
           </div>
           <div class="carousel-nav">
@@ -1820,7 +1814,6 @@ document.addEventListener("DOMContentLoaded", () => {
       slideAnimStep++;
     }
     updateReadMore();
-    if(typeof paintCarouselActions === "function") paintCarouselActions();
   }
 
   function startAutoplay(){
@@ -1876,7 +1869,6 @@ document.addEventListener("DOMContentLoaded", () => {
       </article>`;
   }
   function paintUpdStats(){
-    paintCarouselActions();
     if(!updatesContent) return;
     updatesContent.querySelectorAll("[data-upd]").forEach(card=>{
       const id = card.dataset.upd; if(!id) return;
@@ -1939,24 +1931,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!ok){ updEng.liked.delete(id); updEng.stats[id].likes = Math.max(0, updEng.stats[id].likes-1); showToast("Couldn't like this update. Please try again."); }
     saveUpdEng(); paintUpdStats();
   }
-  // Same like / comment / views controls, shown at the bottom of the carousel panel.
-  function paintCarouselActions(){
-    try{
-      const box = document.getElementById("carActions"); if(!box) return;
-      const slide = slides[activeIndex];
-      if(!slide || !slide.id){ box.hidden = true; box.innerHTML = ""; return; }
-      const id = slide.id;
-      box.hidden = false;
-      box.innerHTML = `<button class="upd-act ${updEng.liked.has(id)?"on":""}" data-car-like="${escU(id)}" type="button" aria-label="Like">${ICON_HEART}<span>${updStat(id,"likes")}</span></button>
-        <button class="upd-act" data-car-cmt="${escU(id)}" type="button" aria-label="Comments">${ICON_COMMENT}<span>${updStat(id,"comments")}</span></button>
-        <span class="upd-views" title="Views">${ICON_EYE}<span>${updStat(id,"views")}</span></span>`;
-    }catch(e){}
-  }
-  document.getElementById("carActions").addEventListener("click", e=>{
-    e.stopPropagation();
-    const l = e.target.closest("[data-car-like]"); if(l){ doLikeUpdate(l.dataset.carLike); return; }
-    const c = e.target.closest("[data-car-cmt]"); if(c){ openUpdates(c.dataset.carCmt, true); }
-  });
   updatesContent.addEventListener("click", async e=>{
     const like = e.target.closest("[data-upd-like]");
     if(like){ doLikeUpdate(like.dataset.updLike); return; }
@@ -2034,7 +2008,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Tapping the carousel (or "Read more") opens the Updates screen at that update.
   if(carouselContentEl) carouselContentEl.addEventListener("click", e => {
-    if(e.target.closest("#carActions")) return;
     const slide = slides[activeIndex];
     if(slide && slide.id) openUpdates(slide.id);
   });

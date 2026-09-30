@@ -3742,6 +3742,8 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     return bid;
   }
   function isFollowing(id){return (db.following||[]).includes(id)}
+  // True for my own account (however it is stored), so no Follow button is ever shown on it.
+  function isMe(id){ const me=myProfileId(); return id==="me" || !!(me && id==="sb:"+me); }
   function toggleFollow(id){
     if(!accountRequired("follow"))return false;
     db.following=db.following||[];
@@ -4307,7 +4309,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         const hasImage=!!p.image;
         const mine=p.authorId==="me";
         return `<article class="bc-card" data-post="${esc(p.id)}" data-post-mine="${mine?"1":"0"}">${b.verified?`<div class="tw-featured">Featured</div>`:""}
-          <div class="tw-post-head">${avatar(b)}<div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div><button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button></div>
+          <div class="tw-post-head">${avatar(b)}<div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div>${isMe(b.id)?"":`<button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button>`}</div>
           <div class="tw-body ${hasImage?"has-media":""}">
             ${hasImage?`<img class="tw-media" src="${esc(p.image)}" alt="Shared spiritual content" data-open-image="${esc(p.id)}">`:""}
             <div class="tw-content">
@@ -4383,7 +4385,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         const b=believer(bid);
         return `<div class="bc-follow-row-item">${avatar(b)}
           <div class="bc-person" data-profile="${esc(bid)}"><div class="bc-name">${nameBadge(b.name,b)}</div><div class="bc-meta">@${esc(b.username)}</div></div>
-          <button class="tw-follow ${isFollowing(bid)?"following":""}" data-follow="${esc(bid)}" type="button">${isFollowing(bid)?"Following":"Follow"}</button>
+          ${isMe(bid)?"":`<button class="tw-follow ${isFollowing(bid)?"following":""}" data-follow="${esc(bid)}" type="button">${isFollowing(bid)?"Following":"Follow"}</button>`}
         </div>`;
       }).join("");
     }

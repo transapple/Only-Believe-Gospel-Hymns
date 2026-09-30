@@ -533,6 +533,11 @@
 .nb-popup h3{margin:0 0 10px;font-size:15px;color:var(--blue-2);}
 .nb-popup-actions{display:flex;flex-direction:column;gap:8px;}
 .nb-popup-actions .nb-btn{width:100%;padding:9px 12px;font-size:13px;}
+#nbCardMenuBackdrop .nb-popup{max-width:236px;padding:10px;border-radius:14px;}
+#nbCardMenuBackdrop .nb-popup h3{margin:0 0 8px;font-size:14px;}
+.nb-sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px;}
+.nb-sheet-actions .nb-btn{padding:7px 8px;font-size:12px;border-radius:8px;grid-column:auto;}
+.nb-sheet-actions .nb-btn:first-child{grid-column:1/-1;}
 .nb-content{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:14px 16px 90px;}
 .nb-content::-webkit-scrollbar{display:none;}
 .nb-hidden{display:none!important;}
@@ -908,7 +913,7 @@
   <div class="nb-popup-backdrop" id="nbCardMenuBackdrop" aria-hidden="true">
     <div class="nb-popup" role="menu" aria-modal="true">
       <h3>Note Options</h3>
-      <div class="nb-popup-actions">
+      <div class="nb-popup-actions nb-sheet-actions">
         <button class="nb-btn" id="nbCardMenuEdit" type="button">Edit</button>
         <button class="nb-btn nb-warn" id="nbCardMenuTrash" type="button">Move to Trash</button>
         <button class="nb-btn" id="nbCardMenuCancel" type="button">Cancel</button>
@@ -3441,8 +3446,9 @@ body[data-app-theme="dark"] .tw-verse{color:var(--ink);}
 .tw-comment-row{-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}.tw-comment-row[data-comment-mine="1"] .tw-comment-text{-webkit-user-select:none;user-select:none}.tw-comment-tool{touch-action:manipulation}
 .tw-edit-box{margin-top:6px}.tw-edit-box textarea{width:100%;min-height:54px;max-height:120px;resize:vertical;font:inherit;box-sizing:border-box}.tw-edit-box .tw-reply-actions{display:flex;gap:6px;margin-top:6px}
 .tw-actionsheet-bg{position:fixed;inset:0;background:rgba(20,22,35,.45);z-index:12500;display:flex;align-items:center;justify-content:center;padding:24px}
-.tw-actionsheet{background:var(--card);width:100%;max-width:280px;border-radius:16px;padding:14px;box-shadow:0 12px 30px rgba(20,25,60,0.25);display:flex;flex-direction:column;gap:8px}
-.tw-actionsheet-btn{display:block;width:100%;text-align:center;padding:10px 12px;border:1.5px solid var(--line);border-radius:9px;background:var(--paper);font:800 13px inherit;color:var(--ink)}
+.tw-actionsheet{background:var(--card);width:100%;max-width:236px;border-radius:14px;padding:10px;box-shadow:0 12px 30px rgba(20,25,60,0.25);display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tw-actionsheet-btn{display:block;width:100%;text-align:center;padding:7px 8px;border:1.5px solid var(--line);border-radius:8px;background:var(--paper);font:800 12px inherit;color:var(--ink);grid-column:1/-1}
+.tw-actionsheet-btn.danger,.tw-actionsheet-btn.cancel{grid-column:auto}
 .tw-actionsheet-btn.danger{background:var(--red);border-color:var(--red);color:#fff}.tw-actionsheet-btn.cancel{color:var(--ink-soft);background:transparent}
 .app-popup-backdrop{position:fixed;inset:0;background:rgba(2,6,23,0.45);display:flex;align-items:center;justify-content:center;z-index:13000;padding:24px}
 .app-popup{background:var(--card);width:100%;max-width:280px;border-radius:16px;padding:16px;text-align:center;box-shadow:0 12px 30px rgba(20,25,60,0.25)}
@@ -3468,7 +3474,7 @@ body[data-app-theme="dark"] .tw-verse{color:var(--ink);}
 .au-pw button{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;color:var(--blue);font:800 11.5px inherit;padding:9px 10px}
 .au-btn{width:100%;border:0;border-radius:12px;padding:13px;background:var(--blue);color:#fff;font:850 14px inherit;margin-top:10px}
 .au-btn:disabled{opacity:.6}
-.tw-featured{display:inline-block;font:800 10px inherit;letter-spacing:.04em;text-transform:uppercase;color:#1E63E9;background:rgba(30,99,233,.1);border-radius:999px;padding:2px 8px;margin:0 0 8px}
+.tw-featured{display:inline-block;font:800 8px/1.2 inherit;letter-spacing:.05em;text-transform:uppercase;color:#1E63E9;background:rgba(30,99,233,.1);border-radius:999px;padding:2px 6px;margin:0 0 6px}
 .nb{white-space:nowrap}.vbadge{width:max(12px,1em);height:max(12px,1em);display:inline-block;vertical-align:-.16em;margin-left:.4em;flex:none}
 .bc-title .vbadge,.bc-profile h3 .vbadge,.as-name .vbadge{width:.9em;height:.9em;vertical-align:-.14em}
 .au-form{display:block}
@@ -3494,6 +3500,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 .bc-modal-actions{display:flex;gap:8px;justify-content:flex-end;margin-top:13px}.bc-modal-actions button{border:0;border-radius:10px;padding:10px 14px;font:800 12.5px inherit}.bc-cancel{background:var(--paper);color:var(--ink-soft)}.bc-save{background:var(--blue);color:#fff}
 .bc-chat-list{display:flex;flex-direction:column}.bc-chat-row{display:flex;align-items:center;gap:12px;background:transparent;border:0;border-bottom:1px solid var(--line);border-radius:0;padding:11px 4px;text-align:left}.bc-chat-row:last-child{border-bottom:0}.bc-chat-row .bc-avatar{width:48px;height:48px;font-size:16px;flex-shrink:0}.bc-chat-row .bc-meta{flex:1;min-width:0}.bc-chat-row .bc-meta strong{display:block;font-size:14.5px}.bc-chat-row .bc-meta span.bc-chat-preview{display:block;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}.bc-chat-row .bc-chat-time{font-size:11px;color:var(--ink-soft);flex-shrink:0;align-self:flex-start;margin-top:2px}.bc-chat-bubble{max-width:78%;padding:9px 12px;border-radius:16px 16px 16px 4px;background:var(--card);border:1px solid var(--line);margin:5px 0;font-size:13.5px;line-height:1.5;box-shadow:0 1px 2px rgba(20,25,60,.05)}.bc-chat-bubble.mine{margin-left:auto;border-radius:16px 16px 4px 16px;background:color-mix(in srgb, var(--blue) 18%, var(--card));border-color:color-mix(in srgb, var(--blue) 32%, var(--line))}.bc-chat-window{display:flex;flex-direction:column;min-height:calc(100vh - 115px)}.bc-messages{flex:1;overflow:auto;padding-bottom:10px}.bc-profile-large{display:flex;justify-content:center;margin-bottom:8px}
 .bc-profile-large .bc-avatar{width:76px;height:76px;border-radius:50%;font-size:26px}
+.bc-pchat{display:block;width:100%;max-width:220px;margin:0 auto 4px;border:0;border-radius:999px;background:var(--blue);color:#fff;padding:8px 14px;font:800 12.5px inherit}
 .bc-detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:12px 0}
 .bc-detail-grid>div{background:var(--paper);border-radius:12px;padding:10px}
 .bc-detail-grid span{display:block;font-size:11px;color:var(--ink-soft);margin-bottom:3px}
@@ -4309,7 +4316,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         const hasImage=!!p.image;
         const mine=p.authorId==="me";
         return `<article class="bc-card" data-post="${esc(p.id)}" data-post-mine="${mine?"1":"0"}">${b.verified?`<div class="tw-featured">Featured</div>`:""}
-          <div class="tw-post-head">${avatar(b)}<div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div>${isMe(b.id)?"":`<button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button>`}</div>
+          <div class="tw-post-head"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none" role="button" aria-label="View profile">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${p.edited?` <span class="bc-meta">(edited)</span>`:""}</div><div class="bc-meta">@${esc(b.username)} • ${fmt(p.createdAt)}</div></div>${isMe(b.id)?"":`<button class="tw-follow ${isFollowing(b.id)?"following":""}" data-follow="${esc(b.id)}" type="button">${isFollowing(b.id)?"Following":"Follow"}</button>`}</div>
           <div class="tw-body ${hasImage?"has-media":""}">
             ${hasImage?`<img class="tw-media" src="${esc(p.image)}" alt="Shared spiritual content" data-open-image="${esc(p.id)}">`:""}
             <div class="tw-content">
@@ -4332,7 +4339,8 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     modal.innerHTML=`<div class="bc-profile-modal">
       <div class="bc-profile-large">${avatar(b)}</div>
       <h3 style="margin:10px 0 2px">${nameBadge(b.name,b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</h3>
-      <div class="bc-meta" style="margin-bottom:12px">@${esc(b.username)}</div>
+      <div class="bc-meta" style="margin-bottom:10px">@${esc(b.username)}</div>
+      <button class="bc-pchat" id="mChat" type="button">${b.id==="me"?"Open chat":"Private chat"}</button>
       <div class="bc-detail-grid">
         <div><span>Church</span><strong>${esc(b.church||"Not listed")}</strong></div>
         <div><span>Pastor</span><strong>${esc(b.pastor||"Not listed")}</strong></div>
@@ -4344,7 +4352,6 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       </div>
       <div class="bc-modal-actions">
         <button class="bc-cancel" id="mCancel">Close</button>
-        <button class="bc-save" id="mChat">${b.id==="me"?"Open chat":"Start private chat"}</button>
       </div>
     </div>`;
     modalBg.classList.add("open");
@@ -5342,6 +5349,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   twBody.addEventListener("click",e=>{
     if(e.target.id==="twCompose"){openTestimonyComposer();return}
+    const prof=e.target.closest("[data-profile]");if(prof){openBelieverProfile(prof.dataset.profile);return}
     const like=e.target.closest("[data-like]");
     if(like){
       if(!requireOnline())return;

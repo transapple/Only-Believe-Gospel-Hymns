@@ -3621,6 +3621,29 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const refreshBtn = document.getElementById("twRefresh");
     if(refreshBtn) refreshBtn.classList.add("spinning");
     try{
+    // Sweep: forget believers/posts that the server no longer has (deleted accounts or posts).
+    // Only acts on a clean server reply; on any error nothing is removed.
+    try{
+      const sbc = window.OBGH_DB.sb;
+      const localIds = (db.believers||[]).map(b=>sbProfileId(b.id)).filter(Boolean);
+      if(localIds.length){
+        const r = await sbc.from("connect_profiles").select("id").in("id", localIds);
+        if(!r.error && Array.isArray(r.data)){
+          const alive = new Set(r.data.map(x=>x.id));
+          const gone = new Set(localIds.filter(i=>!alive.has(i)));
+          if(gone.size){
+            db.believers = db.believers.filter(b=>!gone.has(sbProfileId(b.id)));
+            db.posts = db.posts.filter(p=>!(p.authorId && gone.has(sbProfileId(p.authorId))));
+            db.following = (db.following||[]).filter(id=>!gone.has(sbProfileId(id)));
+          }
+        }
+      }
+      const pr = await sbc.from("posts").select("id");
+      if(!pr.error && Array.isArray(pr.data)){
+        const live = new Set(pr.data.map(x=>x.id));
+        db.posts = db.posts.filter(p=>!isRealId(p.id) || live.has(p.id));
+      }
+    }catch(e){}
     const livePosts = await window.OBGH_DB.fetchPosts();
     if(livePosts.length){
       const meId0 = myProfileId();
@@ -4223,9 +4246,9 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         </div>`:""}
         ${list.length?list.map(b=>`
           <article class="bc-card">
-            <div class="bc-profile">${avatar(b)}<div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}</div><div class="bc-meta">@${esc(b.username)}<br>${esc(b.church||"Church not listed")} • ${esc(b.pastor||"Pastor not listed")}</div></div></div>
+            <div class="bc-profile">${avatar(b)}<div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}<br>${esc(b.church||"Church not listed")} • ${esc(b.pastor||"Pastor not listed")}</div></div></div>
             ${b.bio?`<div class="bc-meta" style="margin:10px 0 0">${esc(b.bio)}</div>`:""}
-            <div class="bc-actions"><button class="bc-btn primary" data-chat="${esc(b.id)}">Private chat</button><button class="bc-btn" data-profile="${esc(b.id)}">View profile</button></div>
+            <div class="bc-actions"><button class="bc-btn primary" data-chat="${esc(b.id)}">${b.id==="me"?"Open chat":"Private chat"}</button><button class="bc-btn" data-profile="${esc(b.id)}">View profile</button></div>
           </article>`).join(""):`<div class="bc-empty"><strong>No believers found</strong>Try another name, church or pastor.</div>`}
       `:db.currentTab==="chats"?renderChatList():renderWallMini()}
     `;
@@ -4244,7 +4267,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       .filter(r=>r.b)
       .sort((x,y)=>(y.last?.ts||0)-(x.last?.ts||0));
     if(!rows.length)return `<div class="bc-empty"><strong>No chats yet</strong>Find a believer and tap Private chat to start a conversation.</div>`;
-    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${esc(b.name)}${vBadge(b)}</strong><span class="bc-chat-preview">${esc(last?.text||"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
+    return `<div class="bc-chat-list">${rows.map(({id,b,last})=>`<button class="bc-chat-row" data-chat="${esc(id)}" type="button">${avatar(b)}<span class="bc-meta"><strong>${esc(b.name)}${vBadge(b)}${id==="me"?" (You)":""}</strong><span class="bc-chat-preview">${esc(last?.text||"Start a conversation")}</span></span>${last?`<span class="bc-chat-time">${chatTimeLabel(last.ts)}</span>`:""}</button>`).join("")}</div>`;
   }
   function renderWallMini(){
     return `<div class="bc-card"><strong>Testimony Wall</strong><p class="bc-meta" style="margin-top:5px">A channel-style feed for testimonies and spiritual encouragement.</p><button class="bc-btn primary" id="openWallMini" style="margin-top:10px">Open Testimony Wall</button></div>`;
@@ -4281,7 +4304,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const posts=believerPosts(id);
     modal.innerHTML=`<div class="bc-profile-modal">
       <div class="bc-profile-large">${avatar(b)}</div>
-      <h3 style="margin:10px 0 2px">${esc(b.name)}${vBadge(b)}</h3>
+      <h3 style="margin:10px 0 2px">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</h3>
       <div class="bc-meta" style="margin-bottom:12px">@${esc(b.username)}</div>
       <div class="bc-detail-grid">
         <div><span>Church</span><strong>${esc(b.church||"Not listed")}</strong></div>
@@ -4294,7 +4317,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       </div>
       <div class="bc-modal-actions">
         <button class="bc-cancel" id="mCancel">Close</button>
-        <button class="bc-save" id="mChat">Start private chat</button>
+        <button class="bc-save" id="mChat">${b.id==="me"?"Open chat":"Start private chat"}</button>
       </div>
     </div>`;
     modalBg.classList.add("open");
@@ -4421,18 +4444,43 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   function openAccountSettings(){
     if(!accountRequired("settings"))return;
     const a=db.account;
-    modal.innerHTML=`<h3>Account settings</h3>
-      <p class="help">Manage your Believers Connect profile, @${esc(a.username)}.</p>
-      <div class="bc-modal-actions" style="flex-direction:column;align-items:stretch">
-        <button class="bc-btn light" id="asEdit" style="width:100%;margin-bottom:8px">Edit profile</button>
-        <button class="bc-btn light" id="asPass" style="width:100%;margin-bottom:8px">Change password</button>
-        <button class="bc-btn light" id="asLogout" style="width:100%;margin-bottom:8px">Log out</button>
-        <button class="bc-btn danger" id="asDelete" style="width:100%;margin-bottom:8px">🗑 Delete account</button>
-        <button class="bc-cancel" id="mCancel" style="width:100%">Close</button>
-      </div>`;
+    modal.innerHTML=`<style>
+      .as-wrap{margin:-4px -4px 0}
+      .as-head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:4px 0 16px}
+      .as-head .as-av{width:72px;height:72px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center}
+      .as-head .as-av>*{width:100%;height:100%}.as-av .bc-avatar{font-size:26px}
+      .as-name{margin:10px 0 2px;font:800 17px inherit;color:var(--ink,#111)}
+      .as-user{font:600 13px inherit;color:var(--ink-soft,#667)}
+      .as-title{font:700 11px inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-soft,#667);margin:14px 6px 6px}
+      .as-group{background:var(--paper,#f2f4fb);border-radius:14px;overflow:hidden}
+      .as-row{display:flex;align-items:center;gap:12px;width:100%;border:0;background:transparent;padding:13px 14px;text-align:left;font:700 15px inherit;color:var(--ink,#111);cursor:pointer;-webkit-tap-highlight-color:transparent}
+      .as-row+.as-row{border-top:1px solid var(--line,rgba(0,0,0,.08))}
+      .as-row:active{background:rgba(30,63,174,.08)}
+      .as-ic{width:32px;height:32px;border-radius:9px;background:var(--blue,#1E3FAE);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+      .as-ic svg{width:18px;height:18px}
+      .as-lbl{flex:1}
+      .as-chev{width:18px;height:18px;color:var(--ink-soft,#99a);flex-shrink:0}
+      .as-row.danger{color:#D13438}
+      .as-row.danger .as-ic{background:#D13438}
+    </style>
+    <div class="as-wrap">
+      <div class="as-head"><div class="as-av">${avatar(a)}</div><div class="as-name">${esc(a.name)}${vBadge(a)}</div><div class="as-user">@${esc(a.username)}</div></div>
+      <div class="as-title">Account</div>
+      <div class="as-group">
+        <button class="as-row" id="asEdit" type="button"><span class="as-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4 12.5-12.5z" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="as-lbl">Edit profile</span><svg class="as-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+        <button class="as-row" id="asPass" type="button"><span class="as-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11h14v10H5zM8 11V7a4 4 0 018 0v4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="as-lbl">Change password</span><svg class="as-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="as-title">Session</div>
+      <div class="as-group">
+        <button class="as-row" id="asLogout" type="button"><span class="as-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5V3h4M16 17l5-5-5-5M21 12H9" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="as-lbl">Log out</span><svg class="as-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+      <div class="as-title">Danger zone</div>
+      <div class="as-group">
+        <button class="as-row danger" id="asDelete" type="button"><span class="as-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14M10 11v6M14 11v6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="as-lbl">Delete account</span><svg class="as-chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>`;
     modalBg.classList.add("open");
     history.pushState({ obghScreen: "modal" }, "", location.href);
-    $("mCancel").onclick=closeModal;
     $("asEdit").onclick=()=>{closeModal();openAccount(db.account)};
     $("asPass").onclick=()=>{closeModal();openChangePassword()};
     $("asLogout").onclick=()=>{
@@ -4586,7 +4634,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       chatPresenceUnsub=window.OBGH_DB.onPresenceChange(()=>refreshChatStatus(id));
       refreshChatStatus(id);
     } else {
-      chatHead.innerHTML=`<div class="bc-title">${esc(b.name)}${vBadge(b)}</div><div class="bc-sub">@${esc(b.username)} • Private chat</div>`;
+      chatHead.innerHTML=`<div class="bc-title">${esc(b.name)}${vBadge(b)}</div><div class="bc-sub">@${esc(b.username)} • ${id==="me"?"This is you":"Private chat"}</div>`;
     }
     if(isLiveChat(id)){
       const me=myProfileId(), them=sbProfileId(id);
@@ -4607,7 +4655,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     }
     const arr=db.chats[id]||[];
     if(ensureMsgIds(arr))save();
-    chatBody.innerHTML=`<div class="bc-messages" id="chatMessages">${arr.length?arr.map(renderChatMessage).join(""):`<div class="bc-empty"><strong>Start your conversation</strong>Keep the chat respectful and centered on Christian fellowship.</div>`}</div>
+    chatBody.innerHTML=`<div class="bc-messages" id="chatMessages">${arr.length?arr.map(renderChatMessage).join(""):`<div class="bc-empty">${id==="me"?"<strong>This is you</strong>Write notes, verses or reminders to yourself here. Only you can see this chat.":"<strong>Start your conversation</strong>Keep the chat respectful and centered on Christian fellowship."}</div>`}</div>
       <div class="bc-chat-compose" id="chatCompose"><input id="chatInput" placeholder="Write a message…"><button id="chatSend" data-mode="mic">🎙</button></div>`;
     wireComposeBar();
     const msgs=$("chatMessages");if(msgs)msgs.scrollTop=msgs.scrollHeight;

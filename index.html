@@ -1601,12 +1601,87 @@ document.addEventListener("DOMContentLoaded", () => {
   let slides = staticSlides.slice();
   const CAROUSEL_UPDATES_CACHE_KEY = "obgh_carousel_updates_cache_v1";
 
+  // ---- Offline copies of update pictures ----
+  // Every update picture is downloaded once while there is network and kept on the
+  // phone (IndexedDB). A stored copy = "downloaded" mark. From then on the carousel
+  // and the Updates screen use the local copy, so pictures show with no network.
+  const IMG_DB_NAME = "obgh_update_images", IMG_STORE = "imgs";
+  const localImgUrls = new Map();          // remote url -> blob: url for the stored copy
+  let imgDbPromise = null;
+  function imgDb(){
+    if(!imgDbPromise) imgDbPromise = new Promise((resolve, reject) => {
+      try{
+        const req = indexedDB.open(IMG_DB_NAME, 1);
+        req.onupgradeneeded = () => req.result.createObjectStore(IMG_STORE);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      }catch(e){ reject(e); }
+    });
+    return imgDbPromise;
+  }
+  function imgTx(mode, fn){
+    return imgDb().then(db => new Promise((resolve, reject) => {
+      const tx = db.transaction(IMG_STORE, mode);
+      const out = fn(tx.objectStore(IMG_STORE));
+      tx.oncomplete = () => resolve(out && out.result);
+      tx.onerror = tx.onabort = () => reject(tx.error);
+    }));
+  }
+  function resolveImg(url){ return (url && localImgUrls.get(url)) || url || null; }
+  // Load every saved picture into memory (works fully offline).
+  const localImgsReady = (async () => {
+    try{
+      const db = await imgDb();
+      await new Promise(resolve => {
+        const store = db.transaction(IMG_STORE, "readonly").objectStore(IMG_STORE);
+        const req = store.openCursor();
+        req.onsuccess = () => {
+          const c = req.result;
+          if(!c){ resolve(); return; }
+          try{ localImgUrls.set(c.key, URL.createObjectURL(c.value)); }catch(e){}
+          c.continue();
+        };
+        req.onerror = () => resolve();
+      });
+    }catch(e){}
+  })();
+  // Download any picture we don't have yet, drop pictures of removed updates.
+  // Returns true when something new was saved so the caller can refresh the view.
+  async function downloadUpdateImages(list){
+    if(!navigator.onLine) return false;
+    await localImgsReady;
+    const wanted = [...new Set((list||[]).map(u => u && u.image).filter(u => u && /^https?:/.test(u)))];
+    let changed = false;
+    for(const url of wanted){
+      if(localImgUrls.has(url)) continue;
+      try{
+        const res = await fetch(url, { mode: "cors", cache: "reload" });
+        if(!res.ok) continue;
+        const blob = await res.blob();
+        if(!blob || !blob.size || !/^image\//.test(blob.type||"image/")) continue;
+        await imgTx("readwrite", st => st.put(blob, url));
+        localImgUrls.set(url, URL.createObjectURL(blob));
+        changed = true;
+      }catch(e){ /* try again next time we're online */ }
+    }
+    try{
+      for(const [url, obj] of [...localImgUrls]){
+        if(!wanted.includes(url)){
+          await imgTx("readwrite", st => st.delete(url));
+          try{ URL.revokeObjectURL(obj); }catch(e){}
+          localImgUrls.delete(url);
+        }
+      }
+    }catch(e){}
+    return changed;
+  }
+
   function updateSlideFromLiveUpdate(u){
     return {
       icon: "new",
       title: u.title || "",
       text: u.text,
-      image: u.image || null,
+      image: resolveImg(u.image),
       gradient: "linear-gradient(135deg, var(--blue), var(--blue-2))"
     };
   }
@@ -1656,6 +1731,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if(slide.image){
       carouselBadge.innerHTML = `<img src="${escAttr(slide.image)}" alt="">`;
       carouselBadge.style.background = "none";
+      const badgeImg = carouselBadge.querySelector("img");
+      if(badgeImg) badgeImg.addEventListener("error", () => {
+        carouselBadge.classList.remove("has-image");
+        carouselBadge.innerHTML = '<span style="font-size:11px;font-weight:900;">NEW</span>';
+        carouselBadge.style.background = slide.gradient;
+      }, { once: true });
     } else {
       carouselBadge.innerHTML =
         slide.icon === "music" ? '<svg class="vector-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l10-2v13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6.5" cy="18" r="3" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="16.5" cy="16" r="3" fill="none" stroke="currentColor" stroke-width="2"/></svg>' :
@@ -1682,7 +1763,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!dots.length) return;
     autoplayTimer = setInterval(() => {
       setActive((activeIndex + 1) % dots.length);
-    }, 9000);
+    }, 7000);
   }
 
   const updatesScreen = document.getElementById("updatesScreen");
@@ -1702,7 +1783,7 @@ document.addEventListener("DOMContentLoaded", () => {
     return `<article class="update-card">
         <div class="update-card-badge"><span style="font-size:11px;font-weight:900;">NEW</span></div>
         <h3>${esc(u.title || "Untitled update")}</h3>
-        ${u.image ? `<img src="${u.image}" alt="" style="max-width:100%;border-radius:10px;margin:8px 0">` : ""}
+        ${u.image ? `<img src="${resolveImg(u.image)}" alt="" style="max-width:100%;border-radius:10px;margin:8px 0">` : ""}
         <p>${esc(u.text)}</p>
       </article>`;
   }
@@ -1722,6 +1803,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
     preloadUpdateImages(liveUpdates);
     updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml();
+    downloadUpdateImages(liveUpdates).then(changed => { if(changed && updatesScreen.classList.contains("open")) updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml(); });
   }
   function closeUpdates(){
     updatesScreen.classList.remove("open");
@@ -1761,12 +1843,19 @@ document.addEventListener("DOMContentLoaded", () => {
         try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
         preloadUpdateImages(liveUpdates);
         applyLiveUpdates(liveUpdates);
+        // Save a permanent offline copy of every picture, then switch the slides to it.
+        downloadUpdateImages(liveUpdates).then(changed => { if(changed) applyLiveUpdates(liveUpdates); });
       }
     }catch(e){ /* keep whatever is currently shown */ }
   }
   try{
     const cachedCarouselUpdates = JSON.parse(localStorage.getItem(CAROUSEL_UPDATES_CACHE_KEY)) || [];
-    if(cachedCarouselUpdates.length){ applyLiveUpdates(cachedCarouselUpdates); if(navigator.onLine) preloadUpdateImages(cachedCarouselUpdates); }
+    if(cachedCarouselUpdates.length){
+      localImgsReady.then(() => {
+        applyLiveUpdates(cachedCarouselUpdates);
+        if(navigator.onLine) downloadUpdateImages(cachedCarouselUpdates).then(changed => { if(changed) applyLiveUpdates(cachedCarouselUpdates); });
+      });
+    }
   }catch(e){}
   refreshCarouselUpdates();
   document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible"){ refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(); } });

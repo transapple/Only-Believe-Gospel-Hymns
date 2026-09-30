@@ -308,9 +308,10 @@
   }
   .carousel-text-wrap{flex:1; display:flex; flex-direction:column; align-items:stretch; min-width:0;}
   .carousel-text{
-    text-align:left; color:var(--ink); font-weight:700; font-size:14.5px; line-height:1.25;
+    text-align:left; color:var(--ink-soft); font-weight:400; font-size:13.5px; line-height:1.35;
     display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:3; overflow:hidden;
   }
+  .carousel-text strong{font-weight:800; font-size:15.5px; color:var(--ink); line-height:1.25;}
   .carousel-text.expanded{-webkit-line-clamp:unset; overflow:visible; display:block;}
   .read-more-btn{
     display:none; margin-top:4px; background:none; border:none; padding:0;
@@ -411,6 +412,27 @@
 .update-card-badge{display:inline-flex;align-items:center;justify-content:center;width:46px;height:46px;border-radius:14px;background:var(--blue);color:#fff;margin-bottom:14px;}
 .update-card h3{margin:0 0 10px;font-size:18px;color:var(--ink);}
 .update-card p{margin:0;color:var(--ink-soft);line-height:1.65;font-size:15px;}
+.update-card.upd-focus{box-shadow:0 0 0 2px var(--blue), 0 4px 10px rgba(20,25,60,0.08);}
+.upd-actions{display:flex;align-items:center;gap:8px;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);}
+.upd-act{display:inline-flex;align-items:center;gap:6px;border:1.5px solid var(--line);background:var(--paper);color:var(--ink-soft);border-radius:999px;padding:6px 12px;font:700 12.5px inherit;cursor:pointer;}
+.upd-act svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.upd-act.on{color:#E0245E;border-color:#E0245E;background:rgba(224,36,94,.08);}
+.upd-act.on svg{fill:currentColor;}
+.upd-views{margin-left:auto;display:inline-flex;align-items:center;gap:5px;font:700 12.5px inherit;color:var(--ink-soft);}
+.upd-views svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.upd-comments{margin-top:12px;}
+.upd-cmt{padding:9px 11px;border-radius:12px;background:var(--paper);margin-bottom:8px;font-size:13.5px;line-height:1.5;color:var(--ink);}
+.upd-cmt b{display:block;font-size:12px;color:var(--blue-2);margin-bottom:2px;}
+.upd-cmt-reply{margin:7px 0 0 10px;padding:7px 10px;border-left:3px solid var(--blue);background:var(--card);border-radius:8px;font-size:13px;}
+.upd-cmt-reply b{color:var(--blue);}
+.upd-cbox textarea{width:100%;min-height:64px;border:1.5px solid var(--line);border-radius:12px;padding:9px 11px;background:var(--paper);color:var(--ink);font:inherit;font-size:14px;resize:vertical;box-sizing:border-box;}
+.upd-cbox button{margin-top:8px;border:0;border-radius:10px;background:var(--blue);color:#fff;padding:8px 16px;font:800 13px inherit;cursor:pointer;}
+.upd-cnote{font-size:12px;color:var(--ink-soft);margin:4px 0 0;}
+.car-actions{display:flex;align-items:center;gap:6px;margin-top:8px;}
+.car-actions[hidden]{display:none;}
+.car-actions .upd-act{padding:4px 10px;font-size:11.5px;gap:5px;}
+.car-actions .upd-act svg,.car-actions .upd-views svg{width:13px;height:13px;}
+.car-actions .upd-views{font-size:11.5px;}
 </style>
 <style>
 /* Hymns list screen */
@@ -694,6 +716,7 @@
             <div class="carousel-text-wrap">
               <p class="carousel-text" id="carouselText">100% free for anyone, anywhere,<br>anytime. No data, no matter.</p>
               <button class="read-more-btn" id="readMoreBtn" type="button">Read more</button>
+              <div class="car-actions" id="carActions" hidden></div>
             </div>
           </div>
           <div class="carousel-nav">
@@ -1565,7 +1588,47 @@ window.OBGH_DB = (function(){
     return (data||[]).map(r=>({ id:r.id, senderId:r.sender_id, recipientId:r.recipient_id, text:r.text, kind:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime() }));
   }
 
-  return { sb, deviceId, fetchSongs, fetchUpdates, fetchNotifications, isRestricted, registerBeliever,
+  // ---- Update engagement (likes / comments / views) — one action per device ----
+  async function fetchUpdateStats(){
+    const { data, error } = await sb.from("update_stats").select("*");
+    if(error){ console.error("OBGH_DB.fetchUpdateStats", error); return null; }
+    const out = {};
+    (data||[]).forEach(r=>{ out[r.update_id] = { likes:r.likes||0, comments:r.comments||0, views:r.views||0 }; });
+    return out;
+  }
+  async function fetchMyUpdateActions(){
+    const dev = deviceId();
+    const [l, c, v] = await Promise.all([
+      sb.from("update_likes").select("update_id").eq("device_id", dev),
+      sb.from("update_comments").select("update_id").eq("device_id", dev),
+      sb.from("update_views").select("update_id").eq("device_id", dev)
+    ]);
+    if(l.error || c.error || v.error) return null;
+    return { liked:(l.data||[]).map(r=>r.update_id), commented:(c.data||[]).map(r=>r.update_id), viewed:(v.data||[]).map(r=>r.update_id) };
+  }
+  async function likeUpdate(updateId){
+    const { error } = await sb.from("update_likes").insert({ update_id:updateId, device_id:deviceId() });
+    if(error && error.code!=="23505"){ console.error("OBGH_DB.likeUpdate", error); return false; }
+    return true;   // 23505 = this device already liked it — counts once
+  }
+  async function viewUpdate(updateId){
+    const { error } = await sb.from("update_views").insert({ update_id:updateId, device_id:deviceId() });
+    if(error && error.code!=="23505"){ console.error("OBGH_DB.viewUpdate", error); return false; }
+    return true;
+  }
+  async function fetchUpdateComments(updateId){
+    const { data, error } = await sb.from("update_comments").select("id,name,text,created_at,admin_reply,replied_at").eq("update_id", updateId).order("created_at", { ascending:true });
+    if(error){ console.error("OBGH_DB.fetchUpdateComments", error); return null; }
+    return data||[];
+  }
+  async function commentUpdate({ updateId, name, text }){
+    const { error } = await sb.from("update_comments").insert({ update_id:updateId, device_id:deviceId(), name:name||"Believer", text });
+    if(error){ if(error.code==="23505") return { ok:false, reason:"already" }; console.error("OBGH_DB.commentUpdate", error); return { ok:false, reason:"error" }; }
+    return { ok:true };
+  }
+
+  return { sb, deviceId, fetchSongs, fetchUpdates, fetchNotifications,
+    fetchUpdateStats, fetchMyUpdateActions, likeUpdate, viewUpdate, fetchUpdateComments, commentUpdate, isRestricted, registerBeliever,
     upsertConnectProfile, fetchPosts, createPost, createComment, submitReport, updatePost, deletePost,
     likePost, unlikePost, likeComment, unlikeComment, fetchMyLikes, follow, unfollow, fetchFollowing,
     fetchFollowers, fetchFollowingProfiles,
@@ -1679,6 +1742,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function updateSlideFromLiveUpdate(u){
     return {
       icon: "new",
+      id: u.id || null,
       title: u.title || "",
       text: u.text,
       image: resolveImg(u.image),
@@ -1756,6 +1820,7 @@ document.addEventListener("DOMContentLoaded", () => {
       slideAnimStep++;
     }
     updateReadMore();
+    if(typeof paintCarouselActions === "function") paintCarouselActions();
   }
 
   function startAutoplay(){
@@ -1778,17 +1843,169 @@ document.addEventListener("DOMContentLoaded", () => {
         <p>${slide.text}</p>
       </article>`).join("");
   }
+  // ---- Update engagement (likes / comments / views), counted once per device ----
+  const UPD_ENG_KEY = "obgh_upd_engage_v1";
+  const updEng = (function(){
+    let raw = {}; try{ raw = JSON.parse(localStorage.getItem(UPD_ENG_KEY)) || {}; }catch(e){}
+    return { liked:new Set(raw.liked||[]), commented:new Set(raw.commented||[]), viewed:new Set(raw.viewed||[]), stats:raw.stats||{} };
+  })();
+  function saveUpdEng(){
+    try{ localStorage.setItem(UPD_ENG_KEY, JSON.stringify({ liked:[...updEng.liked], commented:[...updEng.commented], viewed:[...updEng.viewed], stats:updEng.stats })); }catch(e){}
+  }
+  const ICON_HEART = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.3s-7.2-4.4-9.6-8.8C0.8 8.2 2.3 4.8 5.7 4.8c2 0 3.5 1 4.3 2.5.8-1.5 2.3-2.5 4.3-2.5 3.4 0 4.9 3.4 3.3 6.7-2.4 4.4-9.6 8.8-9.6 8.8Z"/></svg>';
+  const ICON_COMMENT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z"/></svg>';
+  const ICON_EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const escU = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  function updStat(id, k){ return (updEng.stats[id] && updEng.stats[id][k]) || 0; }
+  function updActionsHtml(id){
+    return `<div class="upd-actions">
+        <button class="upd-act ${updEng.liked.has(id)?"on":""}" data-upd-like="${escU(id)}" type="button" aria-label="Like">${ICON_HEART}<span>${updStat(id,"likes")}</span></button>
+        <button class="upd-act" data-upd-cmt="${escU(id)}" type="button" aria-label="Comments">${ICON_COMMENT}<span>${updStat(id,"comments")}</span></button>
+        <span class="upd-views" title="Views">${ICON_EYE}<span>${updStat(id,"views")}</span></span>
+      </div>
+      <div class="upd-comments" data-upd-cbox="${escU(id)}" hidden></div>`;
+  }
   function liveUpdateCardHtml(u){
-    const esc = s => String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-    return `<article class="update-card">
+    const esc = escU;
+    return `<article class="update-card" data-upd="${esc(u.id||"")}">
         <div class="update-card-badge"><span style="font-size:11px;font-weight:900;">NEW</span></div>
         <h3>${esc(u.title || "Untitled update")}</h3>
         ${u.image ? `<img src="${resolveImg(u.image)}" alt="" style="max-width:100%;border-radius:10px;margin:8px 0">` : ""}
         <p>${esc(u.text)}</p>
+        ${u.id ? updActionsHtml(u.id) : ""}
       </article>`;
   }
+  function paintUpdStats(){
+    paintCarouselActions();
+    if(!updatesContent) return;
+    updatesContent.querySelectorAll("[data-upd]").forEach(card=>{
+      const id = card.dataset.upd; if(!id) return;
+      const like = card.querySelector("[data-upd-like]");
+      if(like){ like.classList.toggle("on", updEng.liked.has(id)); like.querySelector("span").textContent = updStat(id,"likes"); }
+      const cm = card.querySelector("[data-upd-cmt]"); if(cm) cm.querySelector("span").textContent = updStat(id,"comments");
+      const vw = card.querySelector(".upd-views span"); if(vw) vw.textContent = updStat(id,"views");
+    });
+  }
+  async function syncUpdEngagement(){
+    if(!navigator.onLine || !window.OBGH_DB || !OBGH_DB.fetchUpdateStats) return;
+    const [stats, mine] = await Promise.all([OBGH_DB.fetchUpdateStats(), OBGH_DB.fetchMyUpdateActions()]);
+    if(stats){ updEng.stats = stats; }
+    if(mine){ updEng.liked = new Set(mine.liked); updEng.commented = new Set(mine.commented); updEng.viewed = new Set([...updEng.viewed, ...mine.viewed]); }
+    saveUpdEng(); paintUpdStats();
+  }
+  // A view counts once per device: remembered locally and enforced by the database.
+  async function recordUpdView(id){
+    if(!id || updEng.viewed.has(id)) return;
+    if(!navigator.onLine) return;               // try again next time it is seen with network
+    updEng.viewed.add(id);
+    const ok = await OBGH_DB.viewUpdate(id);
+    if(!ok){ updEng.viewed.delete(id); return; }
+    updEng.stats[id] = Object.assign({likes:0,comments:0,views:0}, updEng.stats[id]);
+    updEng.stats[id].views++;
+    saveUpdEng(); paintUpdStats();
+  }
+  let updViewObserver = null;
+  function observeUpdateViews(){
+    if(updViewObserver){ updViewObserver.disconnect(); updViewObserver = null; }
+    if(!("IntersectionObserver" in window)) return;
+    updViewObserver = new IntersectionObserver(entries=>{
+      entries.forEach(en=>{ if(en.isIntersecting && en.intersectionRatio >= 0.5){ recordUpdView(en.target.dataset.upd); } });
+    }, { root: updatesScreen, threshold: [0.5] });
+    updatesContent.querySelectorAll("[data-upd]").forEach(c=>{ if(c.dataset.upd) updViewObserver.observe(c); });
+  }
+  function renderUpdComments(box, id, list){
+    const mine = updEng.commented.has(id);
+    box.innerHTML = (list.length ? list.map(c=>`<div class="upd-cmt"><b>${escU(c.name||"Believer")}</b>${escU(c.text)}${c.admin_reply?`<div class="upd-cmt-reply"><b>Admin reply</b>${escU(c.admin_reply)}</div>`:""}</div>`).join("") : `<div class="upd-cnote">No comments yet.</div>`)
+      + (mine ? `<div class="upd-cnote">You've already commented on this update.</div>`
+              : `<div class="upd-cbox"><textarea maxlength="600"></textarea><button type="button" data-upd-post="${escU(id)}">Post comment</button></div>`);
+  }
+  async function toggleUpdComments(id){
+    const box = updatesContent.querySelector(`[data-upd-cbox="${CSS.escape(id)}"]`); if(!box) return;
+    if(!box.hidden){ box.hidden = true; return; }
+    box.hidden = false;
+    if(!navigator.onLine){ box.innerHTML = `<div class="upd-cnote">Comments need an internet connection.</div>`; return; }
+    box.innerHTML = `<div class="upd-cnote">Loading…</div>`;
+    const list = await OBGH_DB.fetchUpdateComments(id);
+    if(list === null){ box.innerHTML = `<div class="upd-cnote">Couldn't load comments. Please try again.</div>`; return; }
+    renderUpdComments(box, id, list);
+  }
+  async function doLikeUpdate(id){
+    if(updEng.liked.has(id)){ showToast("You've already liked this update"); return; }
+    if(!navigator.onLine){ showToast("You're offline — connect to like this update"); return; }
+    updEng.liked.add(id);                         // lock immediately so double-taps can't count twice
+    updEng.stats[id] = Object.assign({likes:0,comments:0,views:0}, updEng.stats[id]);
+    updEng.stats[id].likes++; paintUpdStats();
+    const ok = await OBGH_DB.likeUpdate(id);
+    if(!ok){ updEng.liked.delete(id); updEng.stats[id].likes = Math.max(0, updEng.stats[id].likes-1); showToast("Couldn't like this update. Please try again."); }
+    saveUpdEng(); paintUpdStats();
+  }
+  // Same like / comment / views controls, shown at the bottom of the carousel panel.
+  function paintCarouselActions(){
+    try{
+      const box = document.getElementById("carActions"); if(!box) return;
+      const slide = slides[activeIndex];
+      if(!slide || !slide.id){ box.hidden = true; box.innerHTML = ""; return; }
+      const id = slide.id;
+      box.hidden = false;
+      box.innerHTML = `<button class="upd-act ${updEng.liked.has(id)?"on":""}" data-car-like="${escU(id)}" type="button" aria-label="Like">${ICON_HEART}<span>${updStat(id,"likes")}</span></button>
+        <button class="upd-act" data-car-cmt="${escU(id)}" type="button" aria-label="Comments">${ICON_COMMENT}<span>${updStat(id,"comments")}</span></button>
+        <span class="upd-views" title="Views">${ICON_EYE}<span>${updStat(id,"views")}</span></span>`;
+    }catch(e){}
+  }
+  document.getElementById("carActions").addEventListener("click", e=>{
+    e.stopPropagation();
+    const l = e.target.closest("[data-car-like]"); if(l){ doLikeUpdate(l.dataset.carLike); return; }
+    const c = e.target.closest("[data-car-cmt]"); if(c){ openUpdates(c.dataset.carCmt, true); }
+  });
+  updatesContent.addEventListener("click", async e=>{
+    const like = e.target.closest("[data-upd-like]");
+    if(like){ doLikeUpdate(like.dataset.updLike); return; }
+    const cm = e.target.closest("[data-upd-cmt]");
+    if(cm){ toggleUpdComments(cm.dataset.updCmt); return; }
+    const post = e.target.closest("[data-upd-post]");
+    if(post){
+      const id = post.dataset.updPost;
+      const box = post.closest("[data-upd-cbox]");
+      const text = (box.querySelector("textarea").value||"").trim();
+      if(!text){ showToast("Write your comment first"); return; }
+      if(updEng.commented.has(id)){ showToast("You've already commented on this update"); return; }
+      if(!navigator.onLine){ showToast("You're offline — connect to post your comment"); return; }
+      post.disabled = true;
+      let name = "Believer"; try{ const a = getAccountRecord(); if(a && a.name) name = a.name; }catch(err){}
+      const r = await OBGH_DB.commentUpdate({ updateId:id, name, text });
+      if(r.ok || r.reason==="already"){
+        updEng.commented.add(id);
+        if(r.ok){ updEng.stats[id] = Object.assign({likes:0,comments:0,views:0}, updEng.stats[id]); updEng.stats[id].comments++; }
+        saveUpdEng(); paintUpdStats();
+        const list = await OBGH_DB.fetchUpdateComments(id);
+        renderUpdComments(box, id, list || []);
+        if(r.reason==="already") showToast("You've already commented on this update");
+      } else { post.disabled = false; showToast("Couldn't post your comment. Please try again."); }
+      return;
+    }
+  });
   const UPDATES_CACHE_KEY = "obgh_updates_cache_v1";
-  async function openUpdates(){
+  // After every (re)render of the Updates list: paint counts, start counting views,
+  // and bring the tapped update (from the carousel) into view.
+  let updFocusId = null, updFocusComments = false;
+  function afterUpdatesRender(){
+    paintUpdStats();
+    observeUpdateViews();
+    if(updFocusId){
+      const card = updatesContent.querySelector(`[data-upd="${CSS.escape(updFocusId)}"]`);
+      if(card){
+        updatesContent.querySelectorAll(".upd-focus").forEach(c=>c.classList.remove("upd-focus"));
+        card.classList.add("upd-focus");
+        card.scrollIntoView({ block:"start" });
+        recordUpdView(updFocusId);
+        if(updFocusComments){ const cb = card.querySelector("[data-upd-cbox]"); if(cb && cb.hidden) toggleUpdComments(updFocusId); }
+        updFocusId = null; updFocusComments = false;
+      }
+    }
+  }
+  async function openUpdates(targetId, openComments){
+    updFocusId = (typeof targetId === "string" && targetId) ? targetId : null;
+    updFocusComments = !!(updFocusId && openComments === true);
     // Show cached live updates immediately (works offline), then refresh from
     // Supabase in the background when online.
     let cached = [];
@@ -1798,20 +2015,30 @@ document.addEventListener("DOMContentLoaded", () => {
     updatesScreen.setAttribute("aria-hidden","false");
     document.body.style.overflow="hidden";
     history.pushState({ obghScreen: "updates" }, "", location.href);
+    afterUpdatesRender();
+    syncUpdEngagement();
     const liveUpdates = await window.OBGH_DB.fetchUpdates();
     if(!liveUpdates) return;
     try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
     preloadUpdateImages(liveUpdates);
     updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml();
-    downloadUpdateImages(liveUpdates).then(changed => { if(changed && updatesScreen.classList.contains("open")) updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml(); });
+    afterUpdatesRender();
+    downloadUpdateImages(liveUpdates).then(changed => { if(changed && updatesScreen.classList.contains("open")){ updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml(); afterUpdatesRender(); } });
   }
   function closeUpdates(){
+    if(updViewObserver){ updViewObserver.disconnect(); updViewObserver = null; }
     updatesScreen.classList.remove("open");
     updatesScreen.setAttribute("aria-hidden","true");
     document.body.style.overflow="";
   }
 
-  readMoreBtn.addEventListener("click", openUpdates);
+  // Tapping the carousel (or "Read more") opens the Updates screen at that update.
+  if(carouselContentEl) carouselContentEl.addEventListener("click", e => {
+    if(e.target.closest("#carActions")) return;
+    const slide = slides[activeIndex];
+    if(slide && slide.id) openUpdates(slide.id);
+  });
+  readMoreBtn.addEventListener("click", e => { if(!(slides[activeIndex] && slides[activeIndex].id)){ e.stopPropagation(); openUpdates(); } });
   updatesBack.addEventListener("click", closeUpdates);
 
 
@@ -1845,6 +2072,7 @@ document.addEventListener("DOMContentLoaded", () => {
         applyLiveUpdates(liveUpdates);
         // Save a permanent offline copy of every picture, then switch the slides to it.
         downloadUpdateImages(liveUpdates).then(changed => { if(changed) applyLiveUpdates(liveUpdates); });
+        syncUpdEngagement();
       }
     }catch(e){ /* keep whatever is currently shown */ }
   }
@@ -2002,6 +2230,9 @@ document.addEventListener("DOMContentLoaded", () => {
       if(tabBtn) tabBtn.click();
     };
     switch(n.type){
+      case "update-reply":
+        openUpdates(n.updateId, true);
+        break;
       case "like":
       case "comment":
         goTab("more");
@@ -2154,7 +2385,37 @@ document.addEventListener("DOMContentLoaded", () => {
     notifications = serverNotifs;
     renderNotifBadge();
   }
-  loadInitialNotifications();
+  NOTIF_ICONS["update-reply"] = NOTIF_ICONS.comment;
+  // The admin's replies to this device's comments on Updates arrive as notifications.
+  // Already-posted replies are listed (unread) when the app opens; a reply that arrives
+  // while the app is open also pops up straight away.
+  function replyNotif(r){
+    const short = String(r.text||"").length > 40 ? String(r.text).slice(0,40) + "…" : String(r.text||"");
+    return { id:"reply_"+r.id+"_"+(r.replied_at||""), type:"update-reply", updateId:r.update_id,
+      text:`The admin replied to your comment "${short}"`, ts:r.replied_at ? new Date(r.replied_at).getTime() : Date.now() };
+  }
+  async function loadReplyNotifications(){
+    if(!navigator.onLine) return;
+    try{
+      const { data, error } = await window.OBGH_DB.sb.from("update_comments").select("id,update_id,text,admin_reply,replied_at").eq("device_id", window.OBGH_DB.deviceId()).not("admin_reply","is",null);
+      if(error || !data) return;
+      let added = false;
+      data.forEach(r=>{ const n = replyNotif(r); if(!notifications.some(x=>x.id===n.id)){ notifications.push(n); added = true; } });
+      if(added){ notifications.sort((a,b)=>b.ts-a.ts); notifications = notifications.slice(0,40); renderNotifBadge(); }
+    }catch(e){}
+  }
+  loadInitialNotifications().then(loadReplyNotifications);
+  window.addEventListener("online", loadReplyNotifications);
+  window.OBGH_DB.sb.channel("my_update_replies")
+    .on("postgres_changes", { event:"UPDATE", schema:"public", table:"update_comments", filter:"device_id=eq."+window.OBGH_DB.deviceId() }, payload=>{
+      const r = payload.new; if(!r || !r.admin_reply) return;
+      const n = replyNotif(r);
+      if(notifications.some(x=>x.id===n.id)) return;
+      addNotification(n, true);
+      // keep an open Updates screen in step with the new reply
+      try{ if(updatesScreen.classList.contains("open")){ const cb = updatesContent.querySelector(`[data-upd-cbox="${CSS.escape(r.update_id)}"]`); if(cb && !cb.hidden) OBGH_DB.fetchUpdateComments(r.update_id).then(l=>{ if(l) renderUpdComments(cb, r.update_id, l); }); } }catch(e){}
+    })
+    .subscribe();
   window.OBGH_DB.sb.channel("app_notifications")
     .on("postgres_changes", { event:"INSERT", schema:"public", table:"notifications" }, payload=>{
       const id = "srv_"+payload.new.id;

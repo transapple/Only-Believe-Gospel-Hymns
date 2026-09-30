@@ -3454,8 +3454,8 @@ body[data-app-theme="dark"] .tw-verse{color:var(--ink);}
 .au-btn{width:100%;border:0;border-radius:12px;padding:13px;background:var(--blue);color:#fff;font:850 14px inherit;margin-top:10px}
 .au-btn:disabled{opacity:.6}
 .tw-featured{display:inline-block;font:800 10px inherit;letter-spacing:.04em;text-transform:uppercase;color:#1E63E9;background:rgba(30,99,233,.1);border-radius:999px;padding:2px 8px;margin:0 0 8px}
-.vbadge{width:14px;height:14px;display:inline-block;vertical-align:-2px;margin-left:3px;flex:none}
-.bc-title .vbadge,.bc-profile h3 .vbadge{width:16px;height:16px;vertical-align:-3px}
+.vbadge{width:18px;height:18px;display:inline-block;vertical-align:-2px;margin-left:3px;flex:none}
+.bc-title .vbadge,.bc-profile h3 .vbadge{width:21px;height:21px;vertical-align:-3px}
 .au-form{display:block}
 .au-sec{font:850 11px inherit;letter-spacing:.06em;text-transform:uppercase;color:var(--blue-2);margin:16px 0 8px;padding-bottom:6px;border-bottom:1px solid var(--line)}
 .au-sec:first-child{margin-top:2px}
@@ -3890,7 +3890,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   function vBadge(idOrB){
     const b = (idOrB && typeof idOrB==="object") ? idOrB : (idOrB ? believer(idOrB) : null);
     if(!b || !b.verified) return "";
-    return `<svg class="vbadge" viewBox="0 0 24 24" role="img" aria-label="Verified account" focusable="false"><title>Verified account</title><circle cx="12" cy="12" r="11" fill="#1E63E9"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    return `<svg class="vbadge" viewBox="0 0 24 24" role="img" aria-label="Verified account" focusable="false"><title>Verified account</title><polygon points="12.00,0.30 14.48,2.73 17.85,1.87 18.79,5.21 22.13,6.15 21.27,9.52 23.70,12.00 21.27,14.48 22.13,17.85 18.79,18.79 17.85,22.13 14.48,21.27 12.00,23.70 9.52,21.27 6.15,22.13 5.21,18.79 1.87,17.85 2.73,14.48 0.30,12.00 2.73,9.52 1.87,6.15 5.21,5.21 6.15,1.87 9.52,2.73" fill="#1E63E9" stroke="#1E63E9" stroke-width="1" stroke-linejoin="round"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
   // Verified accounts are boosted: their testimonies sit at the top of everyone's wall
   // (newest first inside each group), and they are listed first in Find Believers.

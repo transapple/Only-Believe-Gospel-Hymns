@@ -1463,7 +1463,9 @@ window.OBGH_DB = (function(){
   }
   function isOnline(profileId){ return !!profileId && currentOnlineIds().has(profileId); }
   function joinPresence(profileId){
-    if(!profileId || presenceChannel) return;
+    if(!profileId) return;
+    startInbox(profileId);
+    if(presenceChannel) return;
     presenceChannel = sb.channel("online-believers", { config:{ presence:{ key: profileId } } });
     const notify = () => presenceListeners.forEach(cb=>{ try{ cb(); }catch(e){} });
     presenceChannel
@@ -1475,6 +1477,7 @@ window.OBGH_DB = (function(){
       });
   }
   function leavePresence(){
+    stopInbox();
     if(presenceChannel){ try{ sb.removeChannel(presenceChannel); }catch(e){} presenceChannel=null; }
   }
   async function deleteAccountEverywhere({ believerId, connectProfileId, name, phone, pastor, device, reason }){
@@ -1510,7 +1513,7 @@ window.OBGH_DB = (function(){
       .or(`and(sender_id.eq.${a},recipient_id.eq.${b}),and(sender_id.eq.${b},recipient_id.eq.${a})`)
       .order("created_at", { ascending:true });
     if(error){ console.error("OBGH_DB.fetchMessages", error); return []; }
-    return (data||[]).map(r=>({ id:r.id, senderId:r.sender_id, recipientId:r.recipient_id, text:r.text, kind:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime() }));
+    return (data||[]).map(r=>({ id:r.id, senderId:r.sender_id, recipientId:r.recipient_id, text:r.text, kind:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime(), deliveredAt:r.delivered_at||null, readAt:r.read_at||null }));
   }
   async function sendMessage({ senderId, recipientId, text, kind, audioUrl, duration }){
     const { data, error } = await sb.from("messages").insert({ sender_id:senderId, recipient_id:recipientId, text:text||null, kind:kind||"text", audio_url:audioUrl||null, duration:duration||null }).select().single();
@@ -1525,6 +1528,41 @@ window.OBGH_DB = (function(){
       })
       .subscribe();
     return () => { try{ sb.removeChannel(channel); }catch(e){} };
+  }
+
+  // ---- Message ticks (sent / delivered / read). Needs `delivered_at` and `read_at`
+  // timestamptz columns on `messages` plus an UPDATE policy for the recipient (see chat reply for SQL).
+  // If the columns are missing these calls just log and do nothing - chat keeps working.
+  const inboxListeners=new Set();
+  let inboxChannel=null;
+  function onInboxEvent(cb){ inboxListeners.add(cb); return ()=>inboxListeners.delete(cb); }
+  async function markDelivered(id){
+    if(!id) return;
+    const { error } = await sb.from("messages").update({ delivered_at:new Date().toISOString() }).eq("id", id).is("delivered_at", null);
+    if(error) console.error("OBGH_DB.markDelivered", error);
+  }
+  async function markAllDelivered(me){
+    if(!me) return;
+    const { error } = await sb.from("messages").update({ delivered_at:new Date().toISOString() }).eq("recipient_id", me).is("delivered_at", null);
+    if(error) console.error("OBGH_DB.markAllDelivered", error);
+  }
+  async function markRead(me, them){
+    if(!me || !them) return;
+    const t=new Date().toISOString();
+    const e1 = (await sb.from("messages").update({ delivered_at:t }).eq("recipient_id", me).eq("sender_id", them).is("delivered_at", null)).error;
+    const e2 = (await sb.from("messages").update({ read_at:t }).eq("recipient_id", me).eq("sender_id", them).is("read_at", null)).error;
+    if(e1||e2) console.error("OBGH_DB.markRead", e1||e2);
+  }
+  function startInbox(me){
+    if(!me || inboxChannel) return;
+    const emit = ev => inboxListeners.forEach(cb=>{ try{ cb(ev); }catch(e){} });
+    inboxChannel = sb.channel("inbox_"+me)
+      .on("postgres_changes", { event:"INSERT", schema:"public", table:"messages", filter:"recipient_id=eq."+me }, p=>emit({ type:"insert", row:p.new }))
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"messages", filter:"sender_id=eq."+me }, p=>emit({ type:"update", row:p.new }))
+      .subscribe(st=>{ if(st==="SUBSCRIBED") markAllDelivered(me); });
+  }
+  function stopInbox(){
+    if(inboxChannel){ try{ sb.removeChannel(inboxChannel); }catch(e){} inboxChannel=null; }
   }
 
   // ---- Accounts with a password: username + password login (4-8 characters).
@@ -1589,7 +1627,7 @@ window.OBGH_DB = (function(){
     if(!me) return [];
     const { data, error } = await sb.from("messages").select("*").or(`sender_id.eq.${me},recipient_id.eq.${me}`).order("created_at", { ascending:true });
     if(error){ console.error("OBGH_DB.fetchMyMessages", error); return []; }
-    return (data||[]).map(r=>({ id:r.id, senderId:r.sender_id, recipientId:r.recipient_id, text:r.text, kind:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime() }));
+    return (data||[]).map(r=>({ id:r.id, senderId:r.sender_id, recipientId:r.recipient_id, text:r.text, kind:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime(), deliveredAt:r.delivered_at||null, readAt:r.read_at||null }));
   }
 
   // ---- Update engagement (likes / comments / views) — one action per device ----
@@ -1637,7 +1675,7 @@ window.OBGH_DB = (function(){
     likePost, unlikePost, likeComment, unlikeComment, fetchMyLikes, follow, unfollow, fetchFollowing,
     fetchFollowers, fetchFollowingProfiles,
     touchPresence, fetchLastSeen, onPresenceChange, isOnline, currentOnlineIds, joinPresence, leavePresence,
-    deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent,
+    deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent, onInboxEvent, markRead, markDelivered,
     updateComment, deleteComment,
     authReady, usernameTaken, phoneTaken, registerPassword, loginWithPassword, resetPassword, hasPassword,
     updateBelieverRecord, discardSignup, fetchMyMessages, fetchProfilesByIds, fetchAllProfiles };
@@ -3864,9 +3902,21 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 .bc-status-dot.online{background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.18)}
 .bc-sub-status.online{color:#1b9e52;font-weight:700}
 /* Followers / Following */
-.bc-follow-row{display:flex;gap:8px;margin-bottom:10px}
-.bc-follow-stat{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:9px 8px;font:750 13px inherit;color:var(--ink)}
+.bc-tabs-row{display:flex;align-items:center;gap:8px;padding-bottom:10px}
+.bc-tabs-row .bc-tabs{flex:1;min-width:0;padding:2px 0}
+.bc-tabs-row .bc-tab{padding:8px 10px}
+.bc-follow-mini{flex:none;display:flex;flex-direction:column;gap:3px}
+.bc-follow-stat{display:flex;align-items:center;justify-content:space-between;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:3px 8px;font:750 10.5px inherit;color:var(--ink);white-space:nowrap}
 .bc-follow-stat span{color:var(--blue);font-weight:900}
+/* Message ticks */
+.bc-msg-meta{display:flex;align-items:center;gap:4px;font-size:9px;margin-top:3px}
+.bc-msg-meta.mine{justify-content:flex-end}
+.bc-msg-time{opacity:.55}
+.bc-ticks{display:inline-flex;align-items:center;line-height:0}
+.bc-ticks svg{display:block;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.bc-ticks.sent{color:#8b90a3}
+.bc-ticks.delivered{color:#22c55e}
+.bc-ticks.read{color:#2563eb}
 .bc-follow-tabs{display:flex;gap:6px;margin:2px 0 12px;background:var(--paper);border-radius:999px;padding:3px}
 .bc-follow-tab{flex:1;border:0;background:transparent;border-radius:999px;padding:8px 6px;font:800 12.5px inherit;color:var(--ink-soft)}
 .bc-follow-tab.active{background:var(--card);color:var(--blue);box-shadow:0 1px 3px rgba(20,25,60,.08)}
@@ -4471,7 +4521,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       const chats={};
       rows.forEach(r=>{
         const other=r.senderId===me?r.recipientId:r.senderId, key="sb:"+other;
-        (chats[key]=chats[key]||[]).push({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio, duration:r.duration, ts:r.ts, mine:r.senderId===me });
+        (chats[key]=chats[key]||[]).push({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio, duration:r.duration, ts:r.ts, mine:r.senderId===me, status:r.senderId===me?statusOfRow(r):undefined });
       });
       db.chats=chats;
       db.following=Array.from(followingSet).map(id=>"sb:"+id).filter(id=>believer(id));
@@ -4651,24 +4701,26 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     list=list.slice().sort((x,y)=>(y.verified?1:0)-(x.verified?1:0));
     const me=db.account;
     bcBody.innerHTML=`
-      <div class="bc-tabs">
-        <button class="bc-tab ${db.currentTab==="chats"?"active":""}" data-tab="chats">Chats</button>
-        <button class="bc-tab ${db.currentTab==="wall"?"active":""}" data-tab="wall">Wall</button>
-        <button class="bc-tab ${db.currentTab==="find"?"active":""}" data-tab="find">Find Believers</button>
+      <div class="bc-tabs-row">
+        <div class="bc-tabs">
+          <button class="bc-tab ${db.currentTab==="chats"?"active":""}" data-tab="chats">Chats</button>
+          <button class="bc-tab ${db.currentTab==="wall"?"active":""}" data-tab="wall">Wall</button>
+          <button class="bc-tab ${db.currentTab==="find"?"active":""}" data-tab="find">Find Believers</button>
+        </div>
+        ${me?`<div class="bc-follow-mini">
+          <button class="bc-follow-stat" data-followlist="followers" type="button">Followers <span id="followerCountEl">${followerCount===null?"…":followerCount}</span></button>
+          <button class="bc-follow-stat" data-followlist="following" type="button">Following <span id="followingCountEl">${(db.following||[]).length}</span></button>
+        </div>`:""}
       </div>
       ${db.currentTab==="find"?`
         <div class="bc-search" style="display:flex;align-items:center;gap:8px"><input id="bcSearch" type="search" enterkeyhint="search" autocomplete="off" autocorrect="off" autocapitalize="off" placeholder="Search name, church or pastor" value="${esc(window._bcDraft!==undefined?window._bcDraft:(window._bcQuery||""))}" style="flex:1"><button class="bc-iconbtn" id="bcSearchBtn" type="button" title="Search" aria-label="Search" style="font-weight:800;color:var(--blue)">Search</button><button class="bc-iconbtn" id="bcTrashBtn" type="button" title="Account settings">⚙</button></div>
-        ${me?`<div class="bc-follow-row">
-          <button class="bc-follow-stat" data-followlist="following" type="button">Following <span id="followingCountEl">${(db.following||[]).length}</span></button>
-          <button class="bc-follow-stat" data-followlist="followers" type="button">Followers <span id="followerCountEl">${followerCount===null?"…":followerCount}</span></button>
-        </div>`:""}
         ${list.length?list.map(b=>`
           <article class="bc-card" data-chat="${esc(b.id)}" style="cursor:pointer">
             <div class="bc-profile"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${nameBadge(b.name,b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}</div></div></div>
           </article>`).join(""):`<div class="bc-empty"><strong>No believers found</strong>Try another name, church or pastor.</div>`}
       `:db.currentTab==="chats"?renderChatList():renderWallMini()}
     `;
-    if(me && db.currentTab==="find") refreshFollowerCount();
+    if(me && (db.currentTab==="find" || followerCount===null)) refreshFollowerCount();
   }
   function chatTimeLabel(ts){
     const d=new Date(ts), n=new Date();
@@ -4996,14 +5048,39 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   }
   function callDuration(s){const m=Math.floor(s/60),sec=s%60;return String(m)+":"+String(sec).padStart(2,"0")}
   let editingMsgId=null;
+  function ticksHTML(m){
+    if(!m.mine || !m.status) return "";
+    const n=m.status==="read"?3:(m.status==="delivered"?2:1);
+    const label=m.status==="read"?"Read":(m.status==="delivered"?"Delivered":"Sent");
+    const w=12+4*(n-1);
+    let paths="";
+    for(let i=0;i<n;i++) paths+=`<path d="M${1+4*i} 6.5l3.5 3.5L${11+4*i} 3"/>`;
+    return `<span class="bc-ticks ${m.status}" title="${label}" aria-label="${label}"><svg width="${w}" height="12" viewBox="0 0 ${w} 12">${paths}</svg></span>`;
+  }
+  function msgMetaHTML(m){
+    return `<div class="bc-msg-meta ${m.mine?"mine":""}"><span class="bc-msg-time">${fmt(m.ts)}${m.edited?" • edited":""}</span>${ticksHTML(m)}</div>`;
+  }
+  function statusOfRow(r){ return r.readAt?"read":(r.deliveredAt?"delivered":"sent"); }
+  // Updates just the tick icon of one bubble (never re-renders, so an open edit box is safe).
+  function setMsgStatus(chatId,msgId,status){
+    const arr=(db.chats||{})[chatId]||[];
+    const m=arr.find(x=>x.id===msgId); if(!m) return;
+    const order={sent:1,delivered:2,read:3};
+    if((order[m.status]||0)>=order[status]) return;   // ticks only ever move forward
+    m.status=status; save();
+    if(db.currentChat===chatId && chatScreen.classList.contains("open")){
+      const el=chatBody.querySelector(`[data-msg="${CSS.escape(String(msgId))}"] .bc-msg-meta`);
+      if(el){ const old=el.querySelector(".bc-ticks"); if(old) old.remove(); el.insertAdjacentHTML("beforeend",ticksHTML(m)); }
+    }
+  }
   function renderChatMessage(m){
     const mineAttr=`data-msg="${esc(m.id||"")}" data-msg-mine="${m.mine?"1":"0"}"`;
     if(m.type==="call")return `<div class="bc-call-log" ${mineAttr}>📞 Voice call • ${callDuration(m.duration||0)}</div>`;
-    if(m.type==="voice")return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><audio controls src="${esc(m.audio)}" style="max-width:220px;display:block"></audio><div style="font-size:9px;opacity:.55;margin-top:3px">${fmt(m.ts)}${m.edited?" • edited":""}</div></div>`;
+    if(m.type==="voice")return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><audio controls src="${esc(m.audio)}" style="max-width:220px;display:block"></audio>${msgMetaHTML(m)}</div>`;
     if(m.id && editingMsgId===m.id){
       return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}><div class="tw-edit-box"><textarea id="msg-edit-ta-${esc(m.id)}">${esc(m.text)}</textarea><div class="tw-reply-actions"><button class="tw-reply-cancel" data-cancel-msg-edit="${esc(m.id)}" type="button">Cancel</button><button class="bc-save" data-save-msg-edit="${esc(m.id)}" type="button">Save</button></div></div></div>`;
     }
-    return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}>${esc(m.text)}<div style="font-size:9px;opacity:.55;margin-top:3px">${fmt(m.ts)}${m.edited?" • edited":""}</div></div>`;
+    return `<div class="bc-chat-bubble ${m.mine?"mine":""}" ${mineAttr}>${esc(m.text)}${msgMetaHTML(m)}</div>`;
   }
   function ensureMsgIds(arr){
     let changed=false;
@@ -5016,6 +5093,23 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   let chatUnsub=null;
   let chatPresenceUnsub=null;
   function stopChatSync(){ if(chatUnsub){ try{chatUnsub();}catch(e){} chatUnsub=null; } if(chatPresenceUnsub){ chatPresenceUnsub(); chatPresenceUnsub=null; } }
+  // Receipts: runs for the whole time the account is signed in, not just inside one chat.
+  window.OBGH_DB.onInboxEvent(ev=>{
+    const r=ev.row||{}, me=myProfileId(); if(!me) return;
+    if(ev.type==="insert"){
+      // I received a message: it reached this device -> "delivered"; if I'm looking at that chat -> "read".
+      const chatId="sb:"+r.sender_id;
+      if(db.currentChat===chatId && chatScreen.classList.contains("open")) window.OBGH_DB.markRead(me,r.sender_id);
+      else window.OBGH_DB.markDelivered(r.id);
+    }else if(ev.type==="update"){
+      // Something I sent changed on the server -> move its ticks forward.
+      const chatId="sb:"+r.recipient_id;
+      if(r.read_at) setMsgStatus(chatId,r.id,"read");
+      else if(r.delivered_at) setMsgStatus(chatId,r.id,"delivered");
+    }
+  });
+  // Chatting with yourself: nobody else is involved, so every message is instantly "read" (3 blue ticks).
+  function isSelfChat(id){ return id==="me" || (!!sbProfileId(id) && sbProfileId(id)===myProfileId()); }
   function isLiveChat(id){ return !!(myProfileId() && sbProfileId(id)); }
   function appendLocalMsg(id,msg){ db.chats[id]=db.chats[id]||[]; db.chats[id].push(msg); save(); }
   function remoteRowToMsg(r,mine){ return { id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio_url, duration:r.duration, ts:r.ts||r.created_at||now(), mine }; }
@@ -5055,13 +5149,15 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     if(isLiveChat(id)){
       const me=myProfileId(), them=sbProfileId(id);
       const rows=await window.OBGH_DB.fetchMessages(me,them);
-      db.chats[id]=rows.map(r=>({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio, duration:r.duration, ts:r.ts, mine:r.senderId===me }));
+      db.chats[id]=rows.map(r=>({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio, duration:r.duration, ts:r.ts, mine:r.senderId===me, status:r.senderId===me?statusOfRow(r):undefined }));
       save();
+      // Opening the chat = reading their messages (they turn blue on the sender's side).
+      if(rows.some(r=>r.senderId===them && !r.readAt)) window.OBGH_DB.markRead(me,them);
       chatUnsub=window.OBGH_DB.subscribeMessages(me,them,r=>{
         if(db.currentChat!==id)return;
         const arr=db.chats[id]=db.chats[id]||[];
         if(arr.some(m=>m.id===r.id))return; // already have it (our own optimistic send)
-        arr.push({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime(), mine:r.sender_id===me });
+        arr.push({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio_url, duration:r.duration, ts:new Date(r.created_at).getTime(), mine:r.sender_id===me, status:r.sender_id===me?"sent":undefined });
         save();
         if(chatScreen.classList.contains("open") && db.currentChat===id){
           chatBody.querySelector("#chatMessages").innerHTML = db.chats[id].map(renderChatMessage).join("");
@@ -5070,7 +5166,9 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       });
     }
     const arr=db.chats[id]||[];
-    if(ensureMsgIds(arr))save();
+    let selfFix=false;
+    if(isSelfChat(id)) arr.forEach(m=>{ if(m.mine && m.status!=="read"){ m.status="read"; selfFix=true; } });   // includes older self-notes
+    if(ensureMsgIds(arr)||selfFix)save();
     chatBody.innerHTML=`<div class="bc-messages" id="chatMessages">${arr.length?arr.map(renderChatMessage).join(""):`<div class="bc-empty">${id==="me"?"<strong>This is you</strong>Write notes, verses or reminders to yourself here. Only you can see this chat.":"<strong>Start your conversation</strong>Keep the chat respectful and centered on Christian fellowship."}</div>`}</div>
       <div class="bc-chat-compose" id="chatCompose"><input id="chatInput" placeholder="Write a message…"><button id="chatSend" data-mode="mic">🎙</button></div>`;
     wireComposeBar();
@@ -5081,13 +5179,13 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const input=$("chatInput");if(!input)return;const text=input.value.trim();if(!text)return;
     input.value="";updateComposeSendIcon();
     const id=db.currentChat;
-    const localMsg={id:uid("msg"),text,ts:now(),mine:true};
+    const localMsg={id:uid("msg"),text,ts:now(),mine:true,status:isSelfChat(id)?"read":undefined};
     appendLocalMsg(id,localMsg);
     chatBody.querySelector("#chatMessages").innerHTML = db.chats[id].map(renderChatMessage).join("");
     const msgs=$("chatMessages");if(msgs)msgs.scrollTop=msgs.scrollHeight;
     if(isLiveChat(id)){
       window.OBGH_DB.sendMessage({ senderId:myProfileId(), recipientId:sbProfileId(id), text, kind:"text" }).then(row=>{
-        if(row){ localMsg.id=row.id; save(); }
+        if(row){ localMsg.id=row.id; save(); setMsgStatus(id,row.id,row.read_at?"read":(row.delivered_at?"delivered":"sent")); }
       }).catch(()=>{});
     }
   }
@@ -5158,7 +5256,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
         const reader=new FileReader();
         reader.onload=async()=>{
           const id=db.currentChat; if(!id){ restoreComposeBar(); return; }
-          const localMsg={id:uid("msg"),type:"voice",audio:reader.result,duration:dur,mine:true,ts:now()};
+          const localMsg={id:uid("msg"),type:"voice",audio:reader.result,duration:dur,mine:true,ts:now(),status:isSelfChat(id)?"read":undefined};
           appendLocalMsg(id,localMsg);
           restoreComposeBar();
           if(chatScreen.classList.contains("open")){
@@ -5168,7 +5266,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
           if(isLiveChat(id)){
             const audioUrl = await window.OBGH_DB.uploadMedia(reader.result, "voice-notes");
             const row = await window.OBGH_DB.sendMessage({ senderId:myProfileId(), recipientId:sbProfileId(id), kind:"voice", audioUrl, duration:dur });
-            if(row){ localMsg.id=row.id; localMsg.audio=audioUrl; save(); }
+            if(row){ localMsg.id=row.id; localMsg.audio=audioUrl; save(); setMsgStatus(id,row.id,row.read_at?"read":(row.delivered_at?"delivered":"sent")); }
           }
         };
         reader.readAsDataURL(blob);

@@ -4263,10 +4263,8 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
           <button class="bc-follow-stat" data-followlist="followers" type="button">Followers <span id="followerCountEl">${followerCount===null?"…":followerCount}</span></button>
         </div>`:""}
         ${list.length?list.map(b=>`
-          <article class="bc-card">
-            <div class="bc-profile">${avatar(b)}<div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}<br>${esc(b.church||"Church not listed")} • ${esc(b.pastor||"Pastor not listed")}</div></div></div>
-            ${b.bio?`<div class="bc-meta" style="margin:10px 0 0">${esc(b.bio)}</div>`:""}
-            <div class="bc-actions"><button class="bc-btn primary" data-chat="${esc(b.id)}">${b.id==="me"?"Open chat":"Private chat"}</button><button class="bc-btn" data-profile="${esc(b.id)}">View profile</button></div>
+          <article class="bc-card" data-chat="${esc(b.id)}" style="cursor:pointer">
+            <div class="bc-profile"><span data-profile="${esc(b.id)}" style="display:inline-flex;cursor:pointer;flex:none">${avatar(b)}</span><div class="bc-person"><div class="bc-name">${esc(b.name)}${vBadge(b)}${b.id==="me"?`<span style="display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;background:#E6ECFF;color:#1E3FAE;font-size:11px;font-weight:700;vertical-align:middle">This is you</span>`:""}</div><div class="bc-meta">@${esc(b.username)}</div></div></div>
           </article>`).join(""):`<div class="bc-empty"><strong>No believers found</strong>Try another name, church or pastor.</div>`}
       `:db.currentTab==="chats"?renderChatList():renderWallMini()}
     `;
@@ -5323,8 +5321,8 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   bcBody.addEventListener("click",e=>{
     const tab=e.target.closest("[data-tab]");if(tab){db.currentTab=tab.dataset.tab;save();renderBelievers();return}
-    const chat=e.target.closest("[data-chat]");if(chat){openChat(chat.dataset.chat);return}
     const profile=e.target.closest("[data-profile]");if(profile){openBelieverProfile(profile.dataset.profile);return}
+    const chat=e.target.closest("[data-chat]");if(chat){openChat(chat.dataset.chat);return}
     if(e.target.id==="openWallMini"){openWall();return}
     if(e.target.closest("#bcTrashBtn")){openAccountSettings();return}
     const flist=e.target.closest("[data-followlist]");if(flist){openFollowList(flist.dataset.followlist);return}

@@ -1897,12 +1897,23 @@ document.addEventListener("DOMContentLoaded", () => {
     saveUpdEng(); paintUpdStats();
   }
   let updViewObserver = null;
+  const updViewTimers = new Map();
+  // A view counts only when the update has really been seen on the Updates screen:
+  // at least half of the card visible for about a second. The carousel never counts.
   function observeUpdateViews(){
     if(updViewObserver){ updViewObserver.disconnect(); updViewObserver = null; }
+    updViewTimers.forEach(t=>clearTimeout(t)); updViewTimers.clear();
     if(!("IntersectionObserver" in window)) return;
     updViewObserver = new IntersectionObserver(entries=>{
-      entries.forEach(en=>{ if(en.isIntersecting && en.intersectionRatio >= 0.5){ recordUpdView(en.target.dataset.upd); } });
-    }, { root: updatesScreen, threshold: [0.5] });
+      entries.forEach(en=>{
+        const id = en.target.dataset.upd; if(!id) return;
+        if(en.isIntersecting && en.intersectionRatio >= 0.5){
+          if(!updViewTimers.has(id)) updViewTimers.set(id, setTimeout(()=>{ updViewTimers.delete(id); recordUpdView(id); }, 1000));
+        } else if(updViewTimers.has(id)){
+          clearTimeout(updViewTimers.get(id)); updViewTimers.delete(id);
+        }
+      });
+    }, { root: updatesScreen, threshold: [0, 0.5] });
     updatesContent.querySelectorAll("[data-upd]").forEach(c=>{ if(c.dataset.upd) updViewObserver.observe(c); });
   }
   function renderUpdComments(box, id, list){
@@ -1971,7 +1982,6 @@ document.addEventListener("DOMContentLoaded", () => {
         updatesContent.querySelectorAll(".upd-focus").forEach(c=>c.classList.remove("upd-focus"));
         card.classList.add("upd-focus");
         card.scrollIntoView({ block:"start" });
-        recordUpdView(updFocusId);
         if(updFocusComments){ const cb = card.querySelector("[data-upd-cbox]"); if(cb && cb.hidden) toggleUpdComments(updFocusId); }
         updFocusId = null; updFocusComments = false;
       }
@@ -2001,6 +2011,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function closeUpdates(){
     if(updViewObserver){ updViewObserver.disconnect(); updViewObserver = null; }
+    updViewTimers.forEach(t=>clearTimeout(t)); updViewTimers.clear();
     updatesScreen.classList.remove("open");
     updatesScreen.setAttribute("aria-hidden","true");
     document.body.style.overflow="";

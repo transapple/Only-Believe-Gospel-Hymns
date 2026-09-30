@@ -1277,21 +1277,21 @@ window.OBGH_DB = (function(){
     return data;
   }
   async function fetchPosts(){
-    const { data: posts, error } = await sb.from("posts").select("*, connect_profiles!posts_author_id_fkey(name, username, avatar_url, verified)").order("created_at", { ascending:false });
+    const { data: posts, error } = await sb.from("posts").select("*, connect_profiles!posts_author_id_fkey(name, username, avatar_url, verified, badge_color)").order("created_at", { ascending:false });
     if(error){ console.error("OBGH_DB.fetchPosts", error); return []; }
-    const { data: comments } = await sb.from("comments").select("*, connect_profiles!comments_author_id_fkey(name, username, avatar_url, verified)").order("created_at", { ascending:true });
+    const { data: comments } = await sb.from("comments").select("*, connect_profiles!comments_author_id_fkey(name, username, avatar_url, verified, badge_color)").order("created_at", { ascending:true });
     return (posts||[]).map(p=>({
       id:p.id, authorId:p.author_id,
       authorName:p.connect_profiles?.name||"Believer", authorUsername:p.connect_profiles?.username||"believer",
-      authorAvatar:p.connect_profiles?.avatar_url||null, authorVerified:!!p.connect_profiles?.verified,
+      authorAvatar:p.connect_profiles?.avatar_url||null, authorVerified:!!p.connect_profiles?.verified, authorBadge:p.connect_profiles?.badge_color||null,
       text:p.text, verse:p.verse, image:p.image_url, likes:p.likes, createdAt:new Date(p.created_at).getTime(),
       comments:(comments||[]).filter(c=>c.post_id===p.id && !c.parent_comment_id).map(c=>({
         id:c.id, authorId:c.author_id, name:c.connect_profiles?.name||"Believer", username:c.connect_profiles?.username||"believer",
-        avatar:c.connect_profiles?.avatar_url||null, verified:!!c.connect_profiles?.verified,
+        avatar:c.connect_profiles?.avatar_url||null, verified:!!c.connect_profiles?.verified, badge:c.connect_profiles?.badge_color||null,
         text:c.text, ts:new Date(c.created_at).getTime(), likes:c.likes,
         replies:(comments||[]).filter(r=>r.parent_comment_id===c.id).map(r=>({
           id:r.id, authorId:r.author_id, name:r.connect_profiles?.name||"Believer", username:r.connect_profiles?.username||"believer",
-          avatar:r.connect_profiles?.avatar_url||null, verified:!!r.connect_profiles?.verified, text:r.text, ts:new Date(r.created_at).getTime(), likes:r.likes, replies:[]
+          avatar:r.connect_profiles?.avatar_url||null, verified:!!r.connect_profiles?.verified, badge:r.connect_profiles?.badge_color||null, text:r.text, ts:new Date(r.created_at).getTime(), likes:r.likes, replies:[]
         }))
       }))
     }));
@@ -1715,6 +1715,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const liveUpdates = await window.OBGH_DB.fetchUpdates();
     if(!liveUpdates) return;
     try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
+    preloadUpdateImages(liveUpdates);
     updatesContent.innerHTML = liveUpdates.map(liveUpdateCardHtml).join("") + staticSlidesHtml();
   }
   function closeUpdates(){
@@ -1738,6 +1739,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // then refresh from Supabase in the background, and again whenever the app
   // is reopened/comes back to the foreground, so new updates actually appear
   // without needing a full reload.
+  // Silent background download: touching each update image while online lets the service
+  // worker keep a permanent copy, so the pictures still show with no signal.
+  function preloadUpdateImages(list){
+    try{ (list||[]).forEach(u=>{ if(u && u.image && /^https?:/.test(u.image)){ const im=new Image(); im.decoding="async"; im.src=u.image; } }); }catch(e){}
+  }
+  // Ask the browser not to evict this app's saved data when the phone is low on space.
+  try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
   async function refreshCarouselUpdates(){
     if(!navigator.onLine) return;
     if(!window.OBGH_DB || typeof window.OBGH_DB.fetchUpdates !== "function") return;
@@ -1745,16 +1753,20 @@ document.addEventListener("DOMContentLoaded", () => {
       const liveUpdates = await window.OBGH_DB.fetchUpdates();
       if(liveUpdates){
         try{ localStorage.setItem(CAROUSEL_UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
+        try{ localStorage.setItem(UPDATES_CACHE_KEY, JSON.stringify(liveUpdates)); }catch(e){}
+        preloadUpdateImages(liveUpdates);
         applyLiveUpdates(liveUpdates);
       }
     }catch(e){ /* keep whatever is currently shown */ }
   }
   try{
     const cachedCarouselUpdates = JSON.parse(localStorage.getItem(CAROUSEL_UPDATES_CACHE_KEY)) || [];
-    if(cachedCarouselUpdates.length) applyLiveUpdates(cachedCarouselUpdates);
+    if(cachedCarouselUpdates.length){ applyLiveUpdates(cachedCarouselUpdates); if(navigator.onLine) preloadUpdateImages(cachedCarouselUpdates); }
   }catch(e){}
   refreshCarouselUpdates();
-  document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible") refreshCarouselUpdates(); });
+  document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible"){ refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(); } });
+  // The moment the phone gets internet again, quietly bring songs and updates up to date.
+  window.addEventListener("online", () => { refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(); });
 
   const toastEl = document.getElementById("toast");
   let toastTimer;
@@ -2110,12 +2122,15 @@ document.addEventListener("DOMContentLoaded", () => {
   (function loadCachedSongs(){
     try{ applyLiveSongs(JSON.parse(localStorage.getItem(LIVE_SONGS_CACHE_KEY))); }catch(e){}
   })();
-  (async function loadLiveSongs(){
+  async function loadLiveSongs(){
+    if(!navigator.onLine) return;
     const liveSongs = await window.OBGH_DB.fetchSongs();
     if(!liveSongs.length) return; // offline or nothing added yet — cached/built-in hymns still work
     try{ localStorage.setItem(LIVE_SONGS_CACHE_KEY, JSON.stringify(liveSongs)); }catch(e){}
     applyLiveSongs(liveSongs);
-  })();
+  }
+  window.OBGH_refreshSongs = loadLiveSongs;
+  loadLiveSongs();
 
   const THEMES = [
     { id: "light",  color: "#ffffff" },
@@ -3655,17 +3670,17 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
       }
       const existingIds = new Set(db.posts.map(p=>p.id));
       livePosts.forEach(lp=>{
-        const upsertBeliever=(id,name,username,avatar,verified)=>{
+        const upsertBeliever=(id,name,username,avatar,verified,badge)=>{
           if(!id) return;
           const existing=db.believers.find(b=>b.id===id);
-          if(existing){ existing.avatar=avatar||existing.avatar; existing.verified=!!verified; }
-          else db.believers.push({ id, name, username, avatar:avatar||null, church:null, pastor:null, bio:null, verified:!!verified });
+          if(existing){ existing.avatar=avatar||existing.avatar; existing.verified=!!verified; existing.badgeColor=badge||null; }
+          else db.believers.push({ id, name, username, avatar:avatar||null, church:null, pastor:null, bio:null, verified:!!verified, badgeColor:badge||null });
         };
         const authorId = lp.authorId ? (lp.authorId===meId0 ? "me" : "sb:"+lp.authorId) : null;
-        upsertBeliever(authorId, lp.authorName, lp.authorUsername, lp.authorAvatar, lp.authorVerified);
+        upsertBeliever(authorId, lp.authorName, lp.authorUsername, lp.authorAvatar, lp.authorVerified, lp.authorBadge);
         const mapComment=c=>{
           const cAuthorId = c.authorId ? (c.authorId===meId0 ? "me" : "sb:"+c.authorId) : null;
-          upsertBeliever(cAuthorId, c.name, c.username, c.avatar, c.verified);
+          upsertBeliever(cAuthorId, c.name, c.username, c.avatar, c.verified, c.badge);
           return { id:c.id, authorId:cAuthorId, name:c.name, username:c.username, text:c.text, ts:c.ts, likes:c.likes, liked:false, replies:(c.replies||[]).map(mapComment) };
         };
         if(existingIds.has(lp.id)){
@@ -3692,7 +3707,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     if(me){
       try{
         const mine=await window.OBGH_DB.fetchProfilesByIds([me]);
-        if(mine[0] && db.account){ db.account.verified=!!mine[0].verified; const mb=db.believers.find(b=>b.id==="me"); if(mb) mb.verified=!!mine[0].verified; }
+        if(mine[0] && db.account){ db.account.verified=!!mine[0].verified; db.account.badgeColor=mine[0].badge_color||null; const mb=db.believers.find(b=>b.id==="me"); if(mb){ mb.verified=!!mine[0].verified; mb.badgeColor=mine[0].badge_color||null; } }
       }catch(e){}
       const likes=await window.OBGH_DB.fetchMyLikes(me);
       db.posts.forEach(p=>{ if(isRealId(p.id)) p.liked=likes.posts.has(p.id); const mark=c=>{ if(isRealId(c.id)) c.liked=likes.comments.has(c.id); (c.replies||[]).forEach(mark); }; (p.comments||[]).forEach(mark); });
@@ -3721,7 +3736,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   function upsertBelieverFromProfile(row){
     if(!row || !row.id) return null;
     const bid="sb:"+row.id;
-    const obj={ id:bid, name:row.name||"Believer", username:row.username||"believer", avatar:row.avatar_url||null, church:row.church||null, pastor:row.pastor||null, bio:row.bio||null, verified:!!row.verified };
+    const obj={ id:bid, name:row.name||"Believer", username:row.username||"believer", avatar:row.avatar_url||null, church:row.church||null, pastor:row.pastor||null, bio:row.bio||null, verified:!!row.verified, badgeColor:row.badge_color||null };
     const existing=db.believers.find(b=>b.id===bid);
     if(existing) Object.assign(existing,obj); else db.believers.push(obj);
     return bid;
@@ -3887,10 +3902,13 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   // Blue mark = a verified account. Anyone can register; the TFG admin verifies the ones who
   // perform well (sets connect_profiles.verified). The app itself can never set this flag.
+  // Seven badge colours the admin can give (connect_profiles.badge_color); blue is the default.
+  const BADGE_HEX={ blue:"#1E63E9", red:"#E53935", green:"#2E9E4F", yellow:"#F5B301", orange:"#F57C00", purple:"#8E44AD", brown:"#8B5A2B" };
   function vBadge(idOrB){
     const b = (idOrB && typeof idOrB==="object") ? idOrB : (idOrB ? believer(idOrB) : null);
     if(!b || !b.verified) return "";
-    return `<svg class="vbadge" viewBox="0 0 24 24" role="img" aria-label="Verified account" focusable="false"><title>Verified account</title><polygon points="12.00,0.30 14.48,2.73 17.85,1.87 18.79,5.21 22.13,6.15 21.27,9.52 23.70,12.00 21.27,14.48 22.13,17.85 18.79,18.79 17.85,22.13 14.48,21.27 12.00,23.70 9.52,21.27 6.15,22.13 5.21,18.79 1.87,17.85 2.73,14.48 0.30,12.00 2.73,9.52 1.87,6.15 5.21,5.21 6.15,1.87 9.52,2.73" fill="#1E63E9" stroke="#1E63E9" stroke-width="1" stroke-linejoin="round"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+    const key = BADGE_HEX[b.badgeColor] ? b.badgeColor : "blue", hex = BADGE_HEX[key], tick = key==="yellow" ? "#4A3500" : "#fff";
+    return `<svg class="vbadge" viewBox="0 0 24 24" role="img" aria-label="Verified account" focusable="false"><title>Verified account</title><polygon points="12.00,0.30 14.48,2.73 17.85,1.87 18.79,5.21 22.13,6.15 21.27,9.52 23.70,12.00 21.27,14.48 22.13,17.85 18.79,18.79 17.85,22.13 14.48,21.27 12.00,23.70 9.52,21.27 6.15,22.13 5.21,18.79 1.87,17.85 2.73,14.48 0.30,12.00 2.73,9.52 1.87,6.15 5.21,5.21 6.15,1.87 9.52,2.73" fill="${hex}" stroke="${hex}" stroke-width="1" stroke-linejoin="round"/><path d="M7 12.5l3.3 3.3L17 9" fill="none" stroke="${tick}" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
   }
   // Verified accounts are boosted: their testimonies sit at the top of everyone's wall
   // (newest first inside each group), and they are listed first in Find Believers.
@@ -4030,7 +4048,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
     const pid=profile.id;
     db.believers=(db.believers||[]).filter(b=>b.id!=="me" && b.id!=="sb:"+pid);
     db._believerId=(bel&&bel.id)||null;
-    db.account={id:"me",name:profile.name||"",username:profile.username||"",avatar:profile.avatar_url||null, verified:!!profile.verified,
+    db.account={id:"me",name:profile.name||"",username:profile.username||"",avatar:profile.avatar_url||null, verified:!!profile.verified, badgeColor:profile.badge_color||null,
       phone:(bel&&bel.phone)||phoneFallback||"",church:profile.church||"",pastor:profile.pastor||(bel&&bel.pastor)||"",bio:profile.bio||"",
       believerId:bel&&bel.id, connectProfileId:pid};
     db.believers.unshift(db.account);

@@ -495,8 +495,6 @@
 .fontsize-step{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(120,120,140,0.28);background:transparent;color:inherit;font-size:19px;font-weight:800;font-family:inherit;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .fontsize-step:active{transform:scale(0.9);}
 .fontsize-val{font-size:14px;font-weight:700;min-width:36px;text-align:center;}
-.note-textarea{width:100%;min-height:80px;border-radius:10px;border:1.5px solid rgba(120,120,140,0.28);background:transparent;color:inherit;font-family:inherit;font-size:13px;padding:10px;resize:vertical;}
-.note-save-btn{margin-top:8px;padding:8px 16px;border-radius:10px;border:none;background:var(--blue);color:#fff;font-weight:700;font-size:12.5px;font-family:inherit;}
 
 .more-section{margin:18px 18px 4px;}
 #settingsScreen .more-section{margin:5px 5px 4px;}
@@ -516,8 +514,20 @@
 #moreScreen{z-index:9990;}
 #settingsScreen{z-index:9991;}
 
-.song-lyrics-wrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 20px 40px;}
+.song-lyrics-wrap{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:20px 20px calc(12px + var(--safe-bottom));}
 .song-lyrics-wrap::-webkit-scrollbar{display:none;}
+/* --- hymns update: centered header, floating auto-hide controls, numbered circles, footer --- */
+#hymnsScreen .hymns-search-wrap{margin-top:calc(12px + var(--safe-top));}
+.song-header{justify-content:space-between;}
+.song-head-spacer{width:36px;height:36px;flex-shrink:0;}
+.song-header-title{text-align:center;}
+.song-num-title,.song-header-sub{text-align:center;}
+.song-controls{position:absolute;left:0;right:0;top:64px;z-index:5;background:var(--song-bg,#fff);box-shadow:0 6px 14px rgba(0,0,0,.10);transition:opacity .25s ease,transform .25s ease,visibility 0s linear 0s;}
+.song-controls.hide{opacity:0;transform:translateY(-10px);visibility:hidden;pointer-events:none;transition:opacity .25s ease,transform .25s ease,visibility 0s linear .25s;}
+.song-lyrics-wrap{padding-top:78px !important;}
+.song-footer{margin:16px 0 0;padding-top:10px;border-top:1px solid rgba(120,120,140,0.22);text-align:center;font-size:11.5px;line-height:1.5;opacity:.65;font-weight:600;}
+.song-num{position:relative;width:39px;height:39px;border:2.5px solid var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--blue);flex-shrink:0;}
+.song-mark-heart{flex-shrink:0;color:var(--red,#e11d48);font-size:18px;line-height:1;margin-left:2px;}
 .song-lyrics{font-size:var(--song-font-size,17px);line-height:1.85;white-space:pre-line;}
 .song-block{margin:0 0 22px;}
 .song-block:last-child{margin-bottom:0;}
@@ -766,13 +776,6 @@
   </div>
 
   <div class="hymns-screen" id="hymnsScreen" aria-hidden="true">
-    <div class="hymns-header">
-      <button class="hymns-back" id="hymnsBack" type="button" aria-label="Close hymns">&#10094;</button>
-      <div>
-        <div class="hymns-title">Hymns</div>
-        <div class="hymns-subtitle">Sing along in your language</div>
-      </div>
-    </div>
     <div class="hymns-search-wrap">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       <input type="search" id="hymnsSearchInput" placeholder="Search by number, title or any word in the lyrics..." aria-label="Search hymns" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
@@ -783,23 +786,25 @@
   </div>
 
   <div class="song-screen" id="songScreen" aria-hidden="true">
-    <div class="song-header">
-      <button class="song-back" id="songBack" type="button" aria-label="Back to hymns list">&#10094;</button>
+    <div class="song-header" id="songHeader">
+      <span class="song-head-spacer" aria-hidden="true"></span>
       <div class="song-header-title">
         <div class="song-num-title" id="songHeaderTitle"></div>
         <div class="song-header-sub" id="songHeaderSub"></div>
       </div>
       <button class="song-fav-btn" id="songFavBtn" type="button" aria-label="Toggle favorite">&#9825;</button>
     </div>
-    <div class="song-control-tabs" id="songControlTabs">
-      <button class="ctrl-tab" data-ctrl="fontsize" type="button">Aa Text Size</button>
-      <button class="ctrl-tab" data-ctrl="theme" type="button">Theme</button>
-      <button class="ctrl-tab" id="ctrlFavTab" data-ctrl="favorite" type="button">&#9825; Favorite</button>
-      <button class="ctrl-tab" data-ctrl="note" type="button">Note</button>
+    <div class="song-controls" id="songControls">
+      <div class="song-control-tabs" id="songControlTabs">
+        <button class="ctrl-tab" data-ctrl="fontsize" type="button">Aa Text Size</button>
+        <button class="ctrl-tab" data-ctrl="theme" type="button">Theme</button>
+        <button class="ctrl-tab" id="ctrlFavTab" data-ctrl="favorite" type="button">&#9825; Favorite</button>
+      </div>
+      <div class="song-panel" id="songPanel"></div>
     </div>
-    <div class="song-panel" id="songPanel"></div>
-    <div class="song-lyrics-wrap">
+    <div class="song-lyrics-wrap" id="songLyricsWrap">
       <div class="song-lyrics" id="songLyrics"></div>
+      <div class="song-footer">&copy; <span id="songFooterYear">2026</span> TFG Administering</div>
     </div>
   </div>
 
@@ -1113,6 +1118,11 @@
         </div>
       </div>
 
+      <div class="more-section">
+        <div class="more-section-title">Chorus Display</div>
+        <div class="more-list" id="settingsChorusList"></div>
+      </div>
+
     </div>
   </div>
 
@@ -1228,13 +1238,26 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous" onerror="window.__OBGH_NO_SB=true"></script>
 <script>
 // ---------- SUPABASE (shared across every script block in this page) ----------
 window.OBGH_DB = (function(){
   const SB_URL = "https://xdlbeepqqbstchjcepgw.supabase.co";
   const SB_KEY = "sb_publishable_VcV-PBmKDgfcxOUCockmJw_DyuuxRRq";
-  const sb = supabase.createClient(SB_URL, SB_KEY);
+  // If the Supabase library could not load (phone offline before it was saved), use a harmless
+  // stand-in so the hymns, home page and saved chats still open instead of the whole app failing.
+  function offlineStub(){
+    const res = { data:null, error:{ message:"offline" } };
+    const mk = () => new Proxy(function(){}, {
+      get:(t,k)=> k==="then" ? (ok)=>Promise.resolve(res).then(ok) : mk(),
+      apply:()=> mk()
+    });
+    return mk();
+  }
+  let sb;
+  try{ sb = window.supabase ? supabase.createClient(SB_URL, SB_KEY) : offlineStub(); }
+  catch(e){ window.__OBGH_NO_SB = true; sb = offlineStub(); }
+  if(!window.supabase) window.__OBGH_NO_SB = true;
 
   function deviceId(){
     let id = localStorage.getItem("obgh_device_id");
@@ -2190,6 +2213,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const updateAppRow = document.getElementById("updateAppRow");
   if(updateAppRow){
     updateAppRow.addEventListener("click", async () => {
+      if(!navigator.onLine){ showToast("Connect to the internet to update — your offline copy is safe"); return; }
       showToast("Checking for the latest version…");
       try{
         if("serviceWorker" in navigator){
@@ -2198,7 +2222,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         if("caches" in window){
           const keys = await caches.keys();
-          await Promise.all(keys.map(k => caches.delete(k)));
+          await Promise.all(keys.filter(k => k.indexOf("obgh-shell-") === 0).map(k => caches.delete(k)));
         }
       }catch(err){ /* best effort — still reload below even if this failed */ }
       if(typeof logActivity === "function") logActivity("Updated app", "generic");
@@ -2572,8 +2596,10 @@ document.addEventListener("DOMContentLoaded", () => {
   let activeSong = null;
   let fontSize = 17;
   let currentTheme = "light";
+  let chorusMode = "once";   // "once" = chorus shown once, as written  |  "repeat" = chorus after every verse
   {
     const saved = getSettings();
+    if(saved.chorusMode === "repeat" || saved.chorusMode === "once") chorusMode = saved.chorusMode;
     if(saved.language && languages.some(l => l.code === saved.language)){ activeLang = saved.language; defaultLang = saved.language; }
     if(saved.theme && THEMES.some(t => t.id === saved.theme)) currentTheme = saved.theme;
     if(saved.fontSize) fontSize = saved.fontSize;
@@ -2590,13 +2616,28 @@ document.addEventListener("DOMContentLoaded", () => {
     try{ localStorage.setItem(FAV_KEY, JSON.stringify(favs)); }catch(e){}
   }
   function isFavorite(id){ return !!getFavorites()[id]; }
-  function getNotes(){ try{ return JSON.parse(localStorage.getItem(NOTE_KEY)) || {}; }catch(e){ return {}; } }
-  function setNote(id, text){
-    const notes = getNotes();
-    if(text && text.trim()) notes[id] = text; else delete notes[id];
-    try{ localStorage.setItem(NOTE_KEY, JSON.stringify(notes)); }catch(e){}
-  }
-  function getNote(id){ return getNotes()[id] || ""; }
+  // My Notebook storage helpers (also used by the one-time migration below).
+  const NB_NOTES_KEY = "OBGH_notebook_notes";
+  function nbRead(){ try{ const v = JSON.parse(localStorage.getItem(NB_NOTES_KEY)); return Array.isArray(v) ? v : []; }catch(e){ return []; } }
+  function nbWrite(a){ try{ localStorage.setItem(NB_NOTES_KEY, JSON.stringify(a)); }catch(e){} }
+  function noteId(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+  function hymnNoteTitle(song, id){ return song ? (song.num + ". " + song.title) : "Hymn note"; }
+  // one-time move of notes saved by the older version into the notebook
+  (function migrateOldHymnNotes(){
+    let old; try{ old = JSON.parse(localStorage.getItem(NOTE_KEY)); }catch(e){ old = null; }
+    if(!old || typeof old !== "object") return;
+    const ids = Object.keys(old);
+    if(!ids.length){ return; }
+    const arr = nbRead(), nowIso = new Date().toISOString();
+    ids.forEach(id => {
+      const text = old[id];
+      if(!text || !String(text).trim() || arr.some(x => x.hymnId === id)) return;
+      const song = ALL_SONGS.find(x => x.id === id);
+      arr.unshift({ id: noteId(), title: hymnNoteTitle(song, id), body: text, tags: [{ name: "Hymn", color: "#1E3FAE" }], hymnId: id, createdAt: nowIso, updatedAt: nowIso });
+    });
+    nbWrite(arr);
+    try{ localStorage.removeItem(NOTE_KEY); }catch(e){}
+  })();
 
   /* ---- Recent activity log (kept to the most recent 30 actions) ---- */
   const ACTIVITY_KEY = "obgh_activities";
@@ -2629,7 +2670,6 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   const hymnsScreen = document.getElementById("hymnsScreen");
-  const hymnsBack = document.getElementById("hymnsBack");
   const langTabsEl = document.getElementById("langTabs");
   const hymnsListEl = document.getElementById("hymnsList");
   const hymnsSearchInput = document.getElementById("hymnsSearchInput");
@@ -2713,6 +2753,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="song-item-title">${song.title}</span>
           <span class="song-item-snippet">${line || ""}</span>
         </span>
+        ${isFavorite(song.id) ? '<span class="song-mark-heart" aria-label="Favorite">&#9829;</span>' : ""}
         <span class="song-key">${song.key}</span>
       </button>`; }).join("") : `<div class="hymns-empty">${searching ? "No hymns match your search." : "No hymns yet in this language."}</div>`;
   }
@@ -2734,7 +2775,6 @@ document.addEventListener("DOMContentLoaded", () => {
     hymnsScreen.setAttribute("aria-hidden", "true");
     document.body.style.overflow = "";
   }
-  hymnsBack.addEventListener("click", () => history.back());
   langTabsEl.addEventListener("click", (e) => {
     const btn = e.target.closest(".lang-tab");
     if(!btn) return;
@@ -2782,13 +2822,63 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---- Song detail screen ---- */
   const songScreen = document.getElementById("songScreen");
-  const songBack = document.getElementById("songBack");
   const songHeaderTitle = document.getElementById("songHeaderTitle");
   const songHeaderSub = document.getElementById("songHeaderSub");
   const songFavBtn = document.getElementById("songFavBtn");
   const ctrlFavTab = document.getElementById("ctrlFavTab");
   const songControlTabs = document.getElementById("songControlTabs");
   const songPanel = document.getElementById("songPanel");
+  const songControls = document.getElementById("songControls");
+  const songHeader = document.getElementById("songHeader");
+  const songLyricsWrap = document.getElementById("songLyricsWrap");
+
+  /* ---- floating controls: show 5s on open, tap toggles, hide 2s after scrolling starts ---- */
+  let ctrlVisible = true, ctrlTimer = null, scrollTimer = null, songOpenedAt = 0;
+  function placeControls(){ songControls.style.top = songHeader.offsetHeight + "px"; }
+  function armAutoHide(){
+    clearTimeout(ctrlTimer);
+    ctrlTimer = setTimeout(() => { if(!songPanel.classList.contains("open")) setControls(false); }, 5000);
+  }
+  function closePanel(){
+    songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
+    songPanel.classList.remove("open");
+  }
+  function setControls(show){
+    if(!show) closePanel();   // hiding the bar also closes any open Text Size / Theme panel
+    ctrlVisible = show;
+    songControls.classList.toggle("hide", !show);
+    clearTimeout(ctrlTimer); clearTimeout(scrollTimer); scrollTimer = null;
+    if(show) armAutoHide();
+  }
+  songScreen.addEventListener("click", (e) => {
+    if(e.target.closest("#songControls")){ armAutoHide(); return; }   // using a control keeps it on screen
+    if(e.target.closest(".song-header")) return;
+    try{ if(String(window.getSelection()).length) return; }catch(err){}
+    if(songPanel.classList.contains("open")){ closePanel(); armAutoHide(); return; }   // tap on the screen closes an open panel
+    setControls(!ctrlVisible);
+  });
+  songLyricsWrap.addEventListener("scroll", () => {
+    if(Date.now() - songOpenedAt < 500) return;
+    if(songPanel.classList.contains("open")) closePanel();   // scrolling closes an open panel
+    if(!ctrlVisible || scrollTimer) return;
+    scrollTimer = setTimeout(() => { scrollTimer = null; setControls(false); }, 2000);
+  }, { passive: true });
+  window.addEventListener("resize", () => { if(songScreen.classList.contains("open")) placeControls(); });
+  songPanel.addEventListener("touchstart", (e) => { e.stopPropagation(); }, { passive: true });
+  songPanel.addEventListener("click", (e) => { e.stopPropagation(); });
+  // keep the screen glued to the visible area when the on-screen keyboard opens
+  if(window.visualViewport){
+    const fitSongToViewport = () => {
+      if(!songScreen.classList.contains("open")) return;
+      const vv = window.visualViewport;
+      songScreen.style.top = vv.offsetTop + "px";
+      songScreen.style.height = vv.height + "px";
+      songScreen.style.bottom = "auto";
+      placeControls();
+    };
+    window.visualViewport.addEventListener("resize", fitSongToViewport);
+    window.visualViewport.addEventListener("scroll", fitSongToViewport);
+  }
   const songLyrics = document.getElementById("songLyrics");
 
   function refreshFavUI(){
@@ -2804,23 +2894,36 @@ document.addEventListener("DOMContentLoaded", () => {
   // order, and marks each block so CSS can bold+capitalize the VERSE/CHORUS
   // label and center just the chorus (verses keep their original left align).
   function formatLyrics(raw){
-    const blocks=String(raw||"").split(/\n\s*\n/);
-    let verseNum=0;
-    return blocks.map(block=>{
-      const lines=block.split("\n");
-      const first=(lines[0]||"").trim();
-      const isChorus=/^chorus\b/i.test(first);
-      const isVerse=/^verse\b/i.test(first);
-      if(isChorus){
-        const body=lines.slice(1).join("\n").trim();
-        return `<div class="song-block song-chorus"><div class="song-block-label">CHORUS</div><div class="song-block-text">${escLyricsHtml(body)}</div></div>`;
+    // 1. split into typed blocks
+    const blocks = String(raw||"").split(/\n\s*\n/).map(b => b.trim()).filter(Boolean).map(block => {
+      const lines = block.split("\n");
+      const first = (lines[0]||"").trim();
+      const body = lines.slice(1).join("\n").trim();
+      if(/^chorus\b/i.test(first)) return { type: "chorus", body };
+      if(/^verse\b/i.test(first)) return { type: "verse", body };
+      return { type: "plain", body: block };
+    });
+    // 2. "chorus after every verse": put the chorus after each verse (when the hymn has one)
+    let seq = blocks;
+    const firstChorus = blocks.find(b => b.type === "chorus");
+    if(chorusMode === "repeat" && firstChorus){
+      seq = [];
+      let current = firstChorus;
+      for(let i = 0; i < blocks.length; i++){
+        const b = blocks[i];
+        if(b.type === "chorus"){ current = b; seq.push(b); continue; }
+        seq.push(b);
+        const next = blocks[i + 1];
+        if(next && next.type === "chorus"){ current = next; seq.push(next); i++; }   // already follows this verse
+        else seq.push(current);                                                       // repeat it here
       }
-      if(isVerse){
-        verseNum++;
-        const body=lines.slice(1).join("\n").trim();
-        return `<div class="song-block song-verse"><div class="song-block-label">VERSE ${verseNum}</div><div class="song-block-text">${escLyricsHtml(body)}</div></div>`;
-      }
-      return `<div class="song-block song-verse"><div class="song-block-text">${escLyricsHtml(block.trim())}</div></div>`;
+    }
+    // 3. render (verses are numbered in order; repeated choruses do not take a number)
+    let verseNum = 0;
+    return seq.map(b => {
+      if(b.type === "chorus") return `<div class="song-block song-chorus"><div class="song-block-label">CHORUS</div><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`;
+      if(b.type === "verse"){ verseNum++; return `<div class="song-block song-verse"><div class="song-block-label">VERSE ${verseNum}</div><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`; }
+      return `<div class="song-block song-verse"><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`;
     }).join("");
   }
   function openSong(song, langCode){
@@ -2830,22 +2933,30 @@ document.addEventListener("DOMContentLoaded", () => {
     songHeaderSub.textContent = `${lang.label} · Key of ${song.key}`;
     songLyrics.innerHTML = formatLyrics(song.lyrics);
     songLyrics.style.fontSize = fontSize + "px";
+    document.getElementById("songFooterYear").textContent = new Date().getFullYear();
     songScreen.dataset.theme = currentTheme;
     songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
     songPanel.classList.remove("open");
     refreshFavUI();
     songScreen.classList.add("open");
     songScreen.setAttribute("aria-hidden", "false");
+    songLyricsWrap.scrollTop = 0;
+    songOpenedAt = Date.now();
+    placeControls();
+    requestAnimationFrame(placeControls);
+    setControls(true);
     history.pushState({ obghScreen: "song", songId: song.id }, "", location.href);
     logActivity(`Viewed "${song.title}"`, "song", { id: song.id, lang: langCode || activeLang });
   }
   function closeSong(){
     songScreen.classList.remove("open");
     songScreen.setAttribute("aria-hidden", "true");
+    songScreen.style.top = ""; songScreen.style.height = ""; songScreen.style.bottom = "";
     activeSong = null;
+    clearTimeout(ctrlTimer); clearTimeout(scrollTimer); scrollTimer = null;
+    if(hymnsScreen.classList.contains("open")){ const st = hymnsListEl.scrollTop; renderHymnsList(); hymnsListEl.scrollTop = st; }
     if(favoritesScreen.classList.contains("open")) renderFavoritesList();
   }
-  songBack.addEventListener("click", () => history.back());
 
   /* ---- Favorites screen ---- */
   const favoritesScreen = document.getElementById("favoritesScreen");
@@ -2862,6 +2973,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <span class="song-item-title">${song.title}</span>
           <span class="song-item-snippet">${languages.find(l => l.code === song.langCode).label} · ${song.snippet}</span>
         </span>
+        <span class="song-mark-heart" aria-label="Favorite">&#9829;</span>
         <span class="song-key">${song.key}</span>
       </button>`).join("") : `<div class="hymns-empty">You haven't favorited any hymns yet.</div>`;
   }
@@ -3032,7 +3144,20 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderSettingsFont(){
     settingsFontVal.textContent = fontSize;
   }
+  const settingsChorusListEl = document.getElementById("settingsChorusList");
+  function renderSettingsChorus(){
+    const opts = [
+      { id: "once",   label: "Chorus once only",           sub: "Shown one time, where it appears in the hymn" },
+      { id: "repeat", label: "Chorus after every verse",   sub: "Repeats the chorus after each verse" }
+    ];
+    settingsChorusListEl.innerHTML = opts.map(o => `
+      <button class="more-row" data-chorus="${o.id}" type="button">
+        <span class="more-row-label">${o.label}<div class="more-row-sub">${o.sub}</div></span>
+        ${chorusMode === o.id ? '<span class="settings-check">&#10003;</span>' : ""}
+      </button>`).join("");
+  }
   function renderSettings(){
+    renderSettingsChorus();
     renderSettingsLanguages();
     renderSettingsAppTheme();
     renderSettingsTheme();
@@ -3063,6 +3188,14 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSettingsLanguages();
     if(hymnsScreen.classList.contains("open")){ renderLangTabs(); renderHymnsList(); }
     showToast(`Default hymn language set to ${languages.find(l => l.code === defaultLang).label}`);
+  });
+  settingsChorusListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-chorus]");
+    if(!btn) return;
+    chorusMode = btn.dataset.chorus === "repeat" ? "repeat" : "once";
+    saveSettings({ chorusMode });
+    renderSettingsChorus();
+    showToast(chorusMode === "repeat" ? "Chorus will show after every verse" : "Chorus will show once only");
   });
   settingsThemeRowEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-theme]");
@@ -3215,6 +3348,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!activeSong) return;
     setFavorite(activeSong.id, !isFavorite(activeSong.id));
     refreshFavUI();
+    try{ if(hymnsScreen.classList.contains("open")){ const st = hymnsListEl.scrollTop; renderHymnsList(); hymnsListEl.scrollTop = st; } }catch(e){}
     const nowFav = isFavorite(activeSong.id);
     showToast(nowFav ? "Added to favorites" : "Removed from favorites");
     logActivity(nowFav ? `Added "${activeSong.title}" to favorites` : `Removed "${activeSong.title}" from favorites`, "song", { id: activeSong.id, lang: activeSong.langCode || activeLang });
@@ -3234,11 +3368,6 @@ document.addEventListener("DOMContentLoaded", () => {
       songPanel.innerHTML = `<div class="theme-swatch-row">${THEMES.map(t =>
         `<button class="theme-swatch ${currentTheme === t.id ? "active" : ""}" data-theme="${t.id}" style="background:${t.color};" type="button" aria-label="${t.id} theme"></button>`
       ).join("")}</div>`;
-    } else if(ctrl === "note"){
-      const existing = activeSong ? getNote(activeSong.id) : "";
-      songPanel.innerHTML =
-        `<textarea class="note-textarea" id="noteInput" placeholder="Write your note about this hymn…">${existing}</textarea>` +
-        `<button class="note-save-btn" id="noteSaveBtn" type="button">Save Note</button>`;
     }
   }
 
@@ -3253,11 +3382,13 @@ document.addEventListener("DOMContentLoaded", () => {
     songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
     if(wasOpen){
       songPanel.classList.remove("open");
+      armAutoHide();
       return;
     }
     tab.classList.add("open");
     renderPanel(tab.dataset.ctrl);
     songPanel.classList.add("open");
+    clearTimeout(ctrlTimer);
   });
 
   songPanel.addEventListener("click", (e) => {
@@ -3279,12 +3410,6 @@ document.addEventListener("DOMContentLoaded", () => {
       renderPanel("theme");
       saveSettings({ theme: currentTheme });
       return;
-    }
-    const saveBtn = e.target.closest("#noteSaveBtn");
-    if(saveBtn && activeSong){
-      setNote(activeSong.id, document.getElementById("noteInput").value);
-      showToast("Note saved");
-      logActivity(`Added a note on "${activeSong.title}"`, "song", { id: activeSong.id, lang: activeSong.langCode || activeLang });
     }
   });
   /* =============== END HYMNS =============== */
@@ -5954,6 +6079,28 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 
   // Also expose simple hooks for future navigation buttons.
   window.OBGHBelievers={open:openBelievers,openWall,openTestimonyComposer,openAccount,openChat};
+
+  // Offline sync hook: pulls testimonies, believers and every chat message from the server and
+  // merges them into the saved copy (nothing already on the phone is removed).
+  window.OBGH_prefetchConnect=async function(){
+    try{
+      await loadLivePosts();
+      const me=myProfileId(); if(!me) return;
+      const [rows, followingSet]=await Promise.all([ window.OBGH_DB.fetchMyMessages(me), window.OBGH_DB.fetchFollowing(me) ]);
+      const partners=new Set(followingSet);
+      rows.forEach(r=>partners.add(r.senderId===me?r.recipientId:r.senderId));
+      partners.delete(me);
+      if(partners.size){ const profiles=await window.OBGH_DB.fetchProfilesByIds(Array.from(partners)); profiles.forEach(upsertBelieverFromProfile); }
+      rows.forEach(r=>{
+        const other=r.senderId===me?r.recipientId:r.senderId, key="sb:"+other;
+        const arr=(db.chats[key]=db.chats[key]||[]);
+        if(arr.some(m=>m.id===r.id)) return;
+        arr.push({ id:r.id, text:r.text, type:r.kind==="text"?undefined:r.kind, audio:r.audio, duration:r.duration, ts:r.ts, mine:r.senderId===me, status:r.senderId===me?statusOfRow(r):undefined });
+      });
+      Object.keys(db.chats).forEach(k=>{ if(Array.isArray(db.chats[k])) db.chats[k].sort((a,b)=>(a.ts||0)-(b.ts||0)); });
+      save();
+    }catch(e){ console.error("OBGH_prefetchConnect", e); }
+  };
 })();
 </script>
 
@@ -6098,9 +6245,12 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   });
 
   if('serviceWorker' in navigator){
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => {});
-    });
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).then(reg => {
+      const check = () => { if(navigator.onLine) reg.update().catch(() => {}); };
+      check();
+      window.addEventListener('online', check);
+      document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') check(); });
+    }).catch(() => {});
   }
 })();
 </script>
@@ -6130,5 +6280,100 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
 })();
 </script>
 
+
+<script>
+// ---------- OFFLINE AUTO-DOWNLOAD ----------
+// Every time the app is opened with internet (and whenever the connection comes back) it
+// downloads and saves: the app itself, all hymns, home-page updates and pictures,
+// testimonies, believers, chats and voice notes — so everything works with no data.
+(function(){
+  var busy = false, last = 0;
+  var DB_KEY = "OBGH_believers_connect_v1";
+
+  function swCall(msg){
+    return new Promise(function(resolve){
+      if(!("serviceWorker" in navigator)) return resolve(null);
+      navigator.serviceWorker.ready.then(function(reg){
+        var w = reg.active || navigator.serviceWorker.controller;
+        if(!w) return resolve(null);
+        var done = false;
+        function on(e){
+          var t = e.data && e.data.type;
+          if(t === "SHELL_READY" || t === "MEDIA_SAVED"){ done = true; navigator.serviceWorker.removeEventListener("message", on); resolve(e.data); }
+        }
+        navigator.serviceWorker.addEventListener("message", on);
+        w.postMessage(msg);
+        setTimeout(function(){ if(!done){ navigator.serviceWorker.removeEventListener("message", on); resolve(null); } }, 60000);
+      }).catch(function(){ resolve(null); });
+    });
+  }
+
+  function collectMedia(extra){
+    var urls = new Set();
+    function add(u){ if(typeof u === "string" && /^https?:\/\//i.test(u)) urls.add(u); }
+    (extra || []).forEach(add);
+    try{
+      var db = JSON.parse(localStorage.getItem(DB_KEY)) || {};
+      (db.believers || []).forEach(function(b){ add(b.avatar); });
+      (db.posts || []).forEach(function(p){
+        add(p.image); add(p.authorAvatar);
+        (function walk(list){ (list || []).forEach(function(c){ add(c.avatar); walk(c.replies); }); })(p.comments);
+      });
+      Object.keys(db.chats || {}).forEach(function(k){
+        (db.chats[k] || []).forEach(function(m){ add(m.audio); add(m.image); });
+      });
+      if(db.account) add(db.account.avatar);
+    }catch(e){}
+    return Array.from(urls);
+  }
+
+  async function run(reason){
+    if(busy || !navigator.onLine) return;
+    if(reason !== "online" && Date.now() - last < 45000) return;
+    busy = true; last = Date.now();
+    try{
+      // 1. the app itself (page, icons, library)
+      await swCall({ type: "REFRESH_SHELL" });
+      // 2. ask the browser not to delete our saved data when space is low
+      try{ if(navigator.storage && navigator.storage.persist) await navigator.storage.persist(); }catch(e){}
+      var D = window.OBGH_DB, extra = [];
+      // 3. hymns (saved by the app's own song cache)
+      try{ if(typeof window.OBGH_refreshSongs === "function") await window.OBGH_refreshSongs(); }catch(e){}
+      // 4. home-page updates + their pictures
+      try{
+        var ups = await D.fetchUpdates();
+        if(ups && ups.length){
+          try{ localStorage.setItem("obgh_updates_cache_v1", JSON.stringify(ups)); }catch(e){}
+          try{ localStorage.setItem("obgh_carousel_updates_cache_v1", JSON.stringify(ups)); }catch(e){}
+          ups.forEach(function(u){ if(u.image) extra.push(u.image); });
+        }
+      }catch(e){}
+      // 5. testimonies, believers, chats
+      try{ if(typeof window.OBGH_prefetchConnect === "function") await window.OBGH_prefetchConnect(); }catch(e){}
+      // 6. pictures, profile photos and voice notes
+      var urls = collectMedia(extra);
+      for(var i = 0; i < urls.length; i += 40){
+        await swCall({ type: "CACHE_URLS", urls: urls.slice(i, i + 40) });
+      }
+    }catch(e){
+      // runs silently — nothing is shown to the user
+    }finally{ busy = false; }
+  }
+
+  window.OBGH_syncOffline = run;
+  function start(){ setTimeout(function(){ run("open"); }, 2500); }
+  if(document.readyState === "complete") start(); else window.addEventListener("load", start);
+  window.addEventListener("online", function(){
+    // if the Supabase library never loaded while offline, reload once now that we can fetch it
+    if(window.__OBGH_NO_SB && !sessionStorage.getItem("obgh_sb_retry")){
+      try{ sessionStorage.setItem("obgh_sb_retry", "1"); }catch(e){}
+      location.reload(); return;
+    }
+    setTimeout(function(){ run("online"); }, 1500);
+  });
+  document.addEventListener("visibilitychange", function(){ if(document.visibilityState === "visible") run("visible"); });
+  setInterval(function(){ if(document.visibilityState === "visible") run("timer"); }, 10 * 60 * 1000);
+})();
+</script>
 </body>
 </html>

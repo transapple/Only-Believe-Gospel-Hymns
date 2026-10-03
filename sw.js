@@ -1,88 +1,141 @@
-/* Only Believe Gospel Hymns service worker
-   - Required by Chrome/Edge/Samsung Internet before they allow a real install.
-   - Keeps a copy of the app so it still opens with no signal. */
+/* Only Believe Gospel Hymns — offline service worker
+   - App shell (page, manifest, icons, Supabase library) is downloaded on every online visit
+   - Page opens instantly from the phone, then quietly refreshes itself in the background
+   - Images and voice notes from Supabase storage are kept for offline use
+   Bump VERSION whenever you want every phone to re-download everything. */
+const VERSION = 'v3';
+const SHELL = 'obgh-shell-' + VERSION;
+const MEDIA = 'obgh-media-v1';
+const MEDIA_LIMIT = 400;
+const SUPABASE_LIB = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js';
+const SHELL_URLS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png', SUPABASE_LIB];
 
-const CACHE_PREFIX = "only-believe-hymns-";
-const CACHE = CACHE_PREFIX + "v6";
-// Permanent home for update pictures. Different prefix on purpose, so a version bump above
-// never deletes it and downloaded images stay on the phone.
-const MEDIA_CACHE = "obgh-media-v1";
-// Only the admin's update pictures (public, each file has its own unique name so it never goes stale).
-const MEDIA_RE = /^https:\/\/[a-z0-9]+\.supabase\.co\/storage\/v1\/object\/public\/media\/updates\//;
-const SHELL = ["./", "./index.html", "./manifest.json", "./icon-192.png", "./icon-512.png"];
+async function precacheShell() {
+  const cache = await caches.open(SHELL);
+  await Promise.all(SHELL_URLS.map(async (u) => {
+    try {
+      const req = new Request(u, { cache: 'reload', mode: u.startsWith('http') ? 'cors' : 'same-origin' });
+      const res = await fetch(req);
+      if (res && res.ok) await cache.put(u, res.clone());
+    } catch (e) { /* one missing file must never block the rest */ }
+  }));
+}
 
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE)
-      .then((cache) => Promise.allSettled(SHELL.map((u) => cache.add(new Request(u, { cache: "reload" })))))
-      .then(() => self.skipWaiting())
-  );
+self.addEventListener('install', (e) => { e.waitUntil(precacheShell().then(() => self.skipWaiting())); });
+
+self.addEventListener('activate', (e) => {
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => (k.startsWith('obgh-shell-') && k !== SHELL) || k.startsWith('only-believe-hymns-')).map(k => caches.delete(k)));
+    await self.clients.claim();
+  })());
 });
 
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches.keys()
-      .then((keys) => Promise.all(
-        // Only touch our own caches; other sites on the same host share Cache Storage.
-        keys.filter((k) => k.startsWith(CACHE_PREFIX) && k !== CACHE).map((k) => caches.delete(k))
-      ))
-      .then(() => self.clients.claim())
-  );
-});
+async function trimMedia() {
+  const cache = await caches.open(MEDIA);
+  const keys = await cache.keys();
+  for (let i = 0; i < keys.length - MEDIA_LIMIT; i++) await cache.delete(keys[i]);
+}
 
-self.addEventListener("fetch", (event) => {
-  const req = event.request;
-  if (req.method !== "GET") return;
+// Show the saved copy immediately; refresh it from the network in the background.
+async function staleWhileRevalidate(req, cacheName, opts) {
+  const cache = await caches.open(cacheName);
+  const cached = await cache.match(req, opts);
+  const net = fetch(req).then(async (res) => {
+    if (res && (res.ok || res.type === 'opaque')) { await cache.put(req, res.clone()); if (cacheName === MEDIA) trimMedia(); }
+    return res;
+  }).catch(() => null);
+  if (cached) { net.catch(() => {}); return cached; }
+  const res = await net;
+  return res || Response.error();
+}
 
+async function rangeFromCache(req, res) {
+  const range = req.headers.get('range');
+  if (!range || !res || res.status !== 200 || res.type === 'opaque') return res;
+  const buf = await res.arrayBuffer();
+  const m = /bytes=(\d*)-(\d*)/.exec(range) || [];
+  const start = m[1] ? parseInt(m[1], 10) : 0;
+  const end = m[2] ? Math.min(parseInt(m[2], 10), buf.byteLength - 1) : buf.byteLength - 1;
+  return new Response(buf.slice(start, end + 1), {
+    status: 206,
+    headers: { 'Content-Type': res.headers.get('Content-Type') || 'audio/mpeg',
+               'Content-Range': 'bytes ' + start + '-' + end + '/' + buf.byteLength,
+               'Content-Length': String(end - start + 1), 'Accept-Ranges': 'bytes' }
+  });
+}
+
+self.addEventListener('fetch', (e) => {
+  const req = e.request;
+  if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
-  // Update pictures: saved once, then served from the phone (works with no signal).
-  // Database/API calls (rest, auth, realtime) are NOT covered by this rule and are never cached.
-  if (MEDIA_RE.test(req.url)) {
-    event.respondWith(
-      caches.open(MEDIA_CACHE).then((cache) =>
-        cache.match(req.url).then((hit) =>
-          hit || fetch(new Request(req.url, { mode: "cors", credentials: "omit" }))
-            .then((res) => { if (res && res.ok) cache.put(req.url, res.clone()).catch(() => {}); return res; })
-            .catch(() => fetch(req))
-        )
-      )
-    );
+  // The app page itself — always openable offline
+  if (req.mode === 'navigate') {
+    e.respondWith((async () => {
+      const cache = await caches.open(SHELL);
+      const cached = (await cache.match('./index.html')) || (await cache.match('./'));
+      const net = fetch(req).then(async (res) => {
+        if (res && res.ok) { await cache.put('./index.html', res.clone()); }
+        return res;
+      }).catch(() => null);
+      if (cached) { e.waitUntil(net); return cached; }
+      return (await net) || new Response('<h1>Offline</h1><p>Open the app once with internet to download it.</p>',
+        { headers: { 'Content-Type': 'text/html' } });
+    })());
     return;
   }
 
-  // Database calls, CDNs, fonts, etc. go straight to the network, never cached here.
-  if (url.origin !== self.location.origin) return;
-
-  // Opening the app: network first (always the latest version), cached copy if offline.
-  if (req.mode === "navigate") {
-    event.respondWith(
-      fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put("./index.html", copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => caches.match("./index.html").then((r) => r || caches.match("./")))
-    );
+  // Supabase JS library (CDN) — cache first
+  if (req.url === SUPABASE_LIB) {
+    e.respondWith(caches.match(SUPABASE_LIB).then(r => r || fetch(req).then(async (res) => {
+      if (res && res.ok) (await caches.open(SHELL)).put(SUPABASE_LIB, res.clone());
+      return res;
+    })));
     return;
   }
 
-  // Icons, manifest and other same-site files: cached copy first, refreshed in the background.
-  event.respondWith(
-    caches.match(req).then((cached) => {
-      const network = fetch(req)
-        .then((res) => {
-          if (res && res.status === 200) {
-            const copy = res.clone();
-            caches.open(CACHE).then((c) => c.put(req, copy)).catch(() => {});
-          }
-          return res;
-        })
-        .catch(() => cached);
-      return cached || network;
-    })
-  );
+  // Supabase data / realtime / auth — never intercepted (the app keeps its own offline copy)
+  if (url.hostname.endsWith('.supabase.co') && !url.pathname.startsWith('/storage/v1/object/')) return;
+
+  // Uploaded pictures and voice notes
+  if (url.hostname.endsWith('.supabase.co')) {
+    e.respondWith((async () => {
+      const res = await staleWhileRevalidate(new Request(req.url, { mode: req.destination === 'audio' ? 'cors' : 'no-cors' }), MEDIA);
+      return req.destination === 'audio' || req.headers.get('range') ? rangeFromCache(req, res) : res;
+    })());
+    return;
+  }
+
+  // Same-origin files (icons, manifest, logos…)
+  if (url.origin === self.location.origin) {
+    e.respondWith(staleWhileRevalidate(req, SHELL, { ignoreSearch: true }));
+    return;
+  }
+
+  // Any other picture on the web
+  if (req.destination === 'image') e.respondWith(staleWhileRevalidate(req, MEDIA));
+});
+
+// The page can ask for extra files to be saved (pictures, voice notes) or the shell to be re-downloaded.
+self.addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'REFRESH_SHELL') {
+    e.waitUntil(precacheShell().then(() => e.source && e.source.postMessage({ type: 'SHELL_READY' })));
+  } else if (d.type === 'CACHE_URLS' && Array.isArray(d.urls)) {
+    e.waitUntil((async () => {
+      const cache = await caches.open(MEDIA);
+      let saved = 0;
+      for (const u of d.urls) {
+        try {
+          if (await cache.match(u)) { saved++; continue; }
+          const isAudio = /\.(webm|mp3|m4a|ogg|wav|aac)(\?|$)/i.test(u);
+          const res = await fetch(new Request(u, { mode: isAudio ? 'cors' : 'no-cors' }));
+          if (res && (res.ok || res.type === 'opaque')) { await cache.put(new Request(u, { mode: isAudio ? 'cors' : 'no-cors' }), res); saved++; }
+        } catch (err) { /* skip, try again next sync */ }
+      }
+      await trimMedia();
+      if (e.source) e.source.postMessage({ type: 'MEDIA_SAVED', saved, total: d.urls.length });
+    })());
+  }
 });

@@ -399,6 +399,7 @@
   .nav-icon-btn .vector-icon{width:18px;height:18px;}
   .whatsapp-icon{width:26px!important;height:26px!important;}
 
+#songScreen{touch-action:pan-y pinch-zoom}
 </style>
 <style>
 .updates-screen{position:fixed;inset:0;z-index:9999;background:var(--paper);color:var(--ink);display:none;overflow:auto;}
@@ -469,6 +470,18 @@
 .song-screen[data-theme="pink"]{--song-bg:#fbdce8;--song-ink:#5a1f39;}
 .song-screen[data-theme="green"]{--song-bg:#123d24;--song-ink:#e4f6ea;}
 .song-screen[data-theme="purple"]{--song-bg:#2e1b4d;--song-ink:#ece2ff;}
+.sp-theme-dark{--song-bg:#15161d;--song-ink:#EDEEF5;}
+.settings-preview{position:sticky;top:0;z-index:6;margin:0 0 14px;border-radius:14px;overflow:hidden;border:1.5px solid rgba(120,120,140,0.35);box-shadow:0 6px 16px rgba(0,0,0,.18);background:var(--song-bg,#fff);color:var(--song-ink,#1A1D2E);}
+.settings-preview[data-theme="dark"]{--song-bg:#15161d;--song-ink:#EDEEF5;}
+.settings-preview[data-theme="sepia"]{--song-bg:#f4ecd8;--song-ink:#3b2f1e;}
+.settings-preview[data-theme="night"]{--song-bg:#0c1730;--song-ink:#cfe0ff;}
+.settings-preview[data-theme="red"]{--song-bg:#7a1414;--song-ink:#fdeaea;}
+.settings-preview[data-theme="pink"]{--song-bg:#fbdce8;--song-ink:#5a1f39;}
+.settings-preview[data-theme="green"]{--song-bg:#123d24;--song-ink:#e4f6ea;}
+.settings-preview[data-theme="purple"]{--song-bg:#2e1b4d;--song-ink:#ece2ff;}
+.settings-preview-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 14px;font-size:11.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-bottom:1px solid rgba(120,120,140,0.25);}
+.settings-preview-head span:last-child{opacity:.65;text-transform:none;letter-spacing:0;font-weight:700;}
+.settings-preview-body{max-height:34vh;overflow-y:auto;padding:12px 16px;-webkit-overflow-scrolling:touch;}
 .song-header{display:flex;align-items:center;gap:12px;padding:calc(14px + var(--safe-top)) 16px 12px;flex-shrink:0;border-bottom:1px solid rgba(120,120,140,0.15);}
 .song-back{width:36px;height:36px;border-radius:50%;border:none;background:rgba(120,120,140,0.12);color:inherit;font-size:15px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .song-header-title{flex:1;min-width:0;}
@@ -494,6 +507,13 @@
 .fontsize-row{display:flex;align-items:center;gap:16px;}
 .fontsize-step{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(120,120,140,0.28);background:transparent;color:inherit;font-size:19px;font-weight:800;font-family:inherit;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .fontsize-step:active{transform:scale(0.9);}
+.fs-slider-wrap{display:flex;align-items:center;gap:12px;width:100%;}
+.fs-slider-wrap .fs-a{font-weight:800;line-height:1;opacity:.75;user-select:none;}
+.fs-slider{-webkit-appearance:none;appearance:none;flex:1;min-width:0;height:28px;background:transparent;margin:0;touch-action:pan-y;cursor:pointer;}
+.fs-slider::-webkit-slider-runnable-track{height:6px;border-radius:3px;background:rgba(120,120,140,0.32);}
+.fs-slider::-moz-range-track{height:6px;border-radius:3px;background:rgba(120,120,140,0.32);}
+.fs-slider::-webkit-slider-thumb{-webkit-appearance:none;width:24px;height:24px;border-radius:50%;background:var(--blue,#2563eb);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);margin-top:-9px;}
+.fs-slider::-moz-range-thumb{width:20px;height:20px;border-radius:50%;background:var(--blue,#2563eb);border:3px solid #fff;box-shadow:0 1px 5px rgba(0,0,0,.35);}
 .fontsize-val{font-size:14px;font-weight:700;min-width:36px;text-align:center;}
 
 .more-section{margin:18px 18px 4px;}
@@ -529,8 +549,21 @@
 .song-num{position:relative;width:39px;height:39px;border:2.5px solid var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--blue);flex-shrink:0;}
 .song-mark-heart{flex-shrink:0;color:var(--red,#e11d48);font-size:18px;line-height:1;margin-left:2px;}
 .song-lyrics{font-size:var(--song-font-size,17px);line-height:1.85;white-space:pre-line;}
+.font-choice-row{display:flex;gap:8px;flex-wrap:wrap;}
+.font-choice{flex:1;min-width:90px;padding:9px 10px;border-radius:12px;border:1.5px solid rgba(120,120,140,0.28);background:transparent;color:inherit;font-size:14px;font-weight:600;}
+.font-choice.active{background:var(--blue);border-color:var(--blue);color:#fff;}
+.present-exit,.present-pos{display:none;}
+.song-screen.present .song-header,.song-screen.present .song-controls{display:none !important;}
+.song-screen.present{--song-bg:#000;--song-ink:#fff;}
+.song-screen.present .song-lyrics-wrap{padding:28px 22px calc(40px + var(--safe-bottom)) !important;}
+.song-screen.present .song-lyrics{font-size:calc(var(--song-font-size,17px) * 1.55) !important;text-align:center;}
+.song-screen.present .song-block-label{opacity:.5;}
+.song-screen.present .song-footer{display:none;}
+.song-screen.present .present-exit{display:flex;position:absolute;top:calc(10px + var(--safe-top));right:12px;z-index:6;width:38px;height:38px;border-radius:50%;border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;font-size:18px;align-items:center;justify-content:center;opacity:.45;}
+.song-screen.present .present-pos{display:block;position:absolute;left:0;right:0;bottom:calc(8px + var(--safe-bottom));text-align:center;font-size:12px;color:#fff;opacity:.4;pointer-events:none;}
 .song-block{margin:0 0 22px;}
 .song-block:last-child{margin-bottom:0;}
+.song-block.gap-lg:not(:last-child),.song-block:not(:last-child):has(+ .gap-lg){margin-bottom:28px;}
 .song-block-label{font-weight:800;text-transform:uppercase;letter-spacing:.02em;color:var(--gold);margin-bottom:6px;}
 .song-block-text{white-space:pre-line;}
 .song-verse{text-align:left;}
@@ -794,10 +827,15 @@
       </div>
       <button class="song-fav-btn" id="songFavBtn" type="button" aria-label="Toggle favorite">&#9825;</button>
     </div>
+    <button class="present-exit" id="presentExit" type="button" aria-label="Exit present mode">&#10005;</button>
+    <div class="present-pos" id="presentPos"></div>
     <div class="song-controls" id="songControls">
       <div class="song-control-tabs" id="songControlTabs">
         <button class="ctrl-tab" data-ctrl="fontsize" type="button">Aa Text Size</button>
+        <button class="ctrl-tab" data-ctrl="spacing" type="button">Spacing</button>
+        <button class="ctrl-tab" data-ctrl="font" type="button">Font</button>
         <button class="ctrl-tab" data-ctrl="theme" type="button">Theme</button>
+        <button class="ctrl-tab" data-ctrl="present" type="button">&#9974; Present</button>
         <button class="ctrl-tab" id="ctrlFavTab" data-ctrl="favorite" type="button">&#9825; Favorite</button>
       </div>
       <div class="song-panel" id="songPanel"></div>
@@ -1082,6 +1120,11 @@
     </div>
     <div class="hymns-list" style="padding-top:4px;">
 
+      <div class="settings-preview" id="settingsPreview" aria-label="Live preview of hymn reading settings">
+        <div class="settings-preview-head"><span>Preview</span><span id="settingsPreviewTitle"></span></div>
+        <div class="settings-preview-body"><div class="song-lyrics" id="settingsPreviewLyrics"></div></div>
+      </div>
+
       <div class="more-section">
         <div class="more-section-title">Default Hymn Language</div>
         <div class="more-list" id="settingsLangList"></div>
@@ -1109,18 +1152,56 @@
         <div class="more-section-title">Reading Font Size</div>
         <div class="more-list">
           <div class="settings-panel-row">
-            <div class="fontsize-row">
-              <button class="fontsize-step" id="settingsFontMinus" type="button" aria-label="Decrease default text size">&minus;</button>
+            <div class="fs-slider-wrap">
+              <span class="fs-a" style="font-size:13px;">A</span>
+              <input type="range" class="fs-slider" id="settingsFontSlider" min="13" max="28" step="1" aria-label="Default text size">
+              <span class="fs-a" style="font-size:24px;">A</span>
               <span class="fontsize-val" id="settingsFontVal"></span>
-              <button class="fontsize-step" id="settingsFontPlus" type="button" aria-label="Increase default text size">+</button>
             </div>
           </div>
         </div>
       </div>
 
       <div class="more-section">
+        <div class="more-section-title">Line Spacing</div>
+        <div class="more-list">
+          <div class="settings-panel-row">
+            <div class="fs-slider-wrap">
+              <span class="fs-a" style="font-size:13px;">&#8801;</span>
+              <input type="range" class="fs-slider" id="settingsSpacingSlider" min="1.4" max="2.4" step="0.05" aria-label="Line spacing">
+              <span class="fs-a" style="font-size:20px;">&#8801;</span>
+              <span class="fontsize-val" id="settingsSpacingVal"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Reading Font</div>
+        <div class="more-list" id="settingsFontFamilyList"></div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Screen</div>
+        <div class="more-list" id="settingsAwakeList"></div>
+      </div>
+
+      <div class="more-section">
         <div class="more-section-title">Chorus Display</div>
         <div class="more-list" id="settingsChorusList"></div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-list">
+          <button class="more-row" id="settingsResetBtn" type="button">
+            <span class="more-row-label">Reset reading settings<div class="more-row-sub">Text size, spacing, font, theme, labels, chorus and screen-awake back to defaults</div></span>
+          </button>
+        </div>
+      </div>
+
+      <div class="more-section">
+        <div class="more-section-title">Verse &amp; Chorus Labels</div>
+        <div class="more-list" id="settingsLabelList"></div>
       </div>
 
     </div>
@@ -1285,10 +1366,16 @@ window.OBGH_DB = (function(){
     if(error){ console.error("OBGH_DB.fetchUpdates", error); return null; }
     return (data||[]).map(r=>({ id:r.id, num:r.num, title:r.title, text:r.text, image:r.image_url, ts:new Date(r.created_at).getTime() }));
   }
+  // New-update announcements sent from TFG Admin carry a hidden marker ⟦u:<update id>⟧ so tapping them opens that update.
+  function srvNotif(id, type, text, ts){
+    const m = /\s*⟦u:([^⟧]+)⟧/.exec(text || "");
+    if(m) return { id, type:"update", updateId:m[1], text:String(text).replace(m[0], "").trim(), ts };
+    return { id, type, text, ts };
+  }
   async function fetchNotifications(){
     const { data, error } = await sb.from("notifications").select("*").order("ts", { ascending:false }).limit(30);
     if(error){ console.error("OBGH_DB.fetchNotifications", error); return []; }
-    return (data||[]).map(r=>({ id:"srv_"+r.id, type:r.type, text:r.text, ts:new Date(r.ts).getTime(), read:false }));
+    return (data||[]).map(r=>({ ...srvNotif("srv_"+r.id, r.type, r.text, new Date(r.ts).getTime()), read:false }));
   }
   async function isRestricted({ phone, name, device }){
     let query = sb.from("restricted").select("id").limit(1);
@@ -1707,7 +1794,7 @@ window.OBGH_DB = (function(){
     likePost, unlikePost, likeComment, unlikeComment, fetchMyLikes, follow, unfollow, fetchFollowing,
     fetchFollowers, fetchFollowingProfiles, fetchFollowCounts,
     touchPresence, fetchLastSeen, onPresenceChange, isOnline, currentOnlineIds, joinPresence, leavePresence,
-    deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent, onInboxEvent, markRead, markDelivered,
+    deleteAccountEverywhere, uploadMedia, fetchMessages, sendMessage, subscribeMessages, logUsageEvent, srvNotif, onInboxEvent, markRead, markDelivered,
     updateComment, deleteComment,
     authReady, usernameTaken, phoneTaken, registerPassword, loginWithPassword, resetPassword, hasPassword,
     updateBelieverRecord, discardSignup, fetchMyMessages, fetchProfilesByIds, fetchAllProfiles };
@@ -1998,7 +2085,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function renderUpdComments(box, id, list){
     const mine = updEng.commented.has(id);
-    box.innerHTML = (list.length ? list.map(c=>`<div class="upd-cmt"><b>${escU(c.name||"Believer")}</b>${escU(c.text)}${c.admin_reply?`<div class="upd-cmt-reply"><b>Admin reply</b>${escU(c.admin_reply)}</div>`:""}</div>`).join("") : `<div class="upd-cnote">No comments yet.</div>`)
+    box.innerHTML = (list.length ? list.map(c=>`<div class="upd-cmt"><b>${escU(c.name||"Believer")}</b>${escU(c.text)}</div>`).join("") : `<div class="upd-cnote">No comments yet.</div>`)
       + (mine ? `<div class="upd-cnote">You've already commented on this update.</div>`
               : `<div class="upd-cbox"><textarea maxlength="600"></textarea><button type="button" data-upd-post="${escU(id)}">Post comment</button></div>`);
   }
@@ -2298,6 +2385,9 @@ document.addEventListener("DOMContentLoaded", () => {
       case "update-reply":
         openUpdates(n.updateId, true);
         break;
+      case "update":
+        openUpdates(n.updateId, false);
+        break;
       case "like":
       case "comment":
         goTab("more");
@@ -2451,13 +2541,14 @@ document.addEventListener("DOMContentLoaded", () => {
     renderNotifBadge();
   }
   NOTIF_ICONS["update-reply"] = NOTIF_ICONS.comment;
+  NOTIF_ICONS["update"] = NOTIF_ICONS.system;
   // The admin's replies to this device's comments on Updates arrive as notifications.
   // Already-posted replies are listed (unread) when the app opens; a reply that arrives
   // while the app is open also pops up straight away.
   function replyNotif(r){
     const short = String(r.text||"").length > 40 ? String(r.text).slice(0,40) + "…" : String(r.text||"");
     return { id:"reply_"+r.id+"_"+(r.replied_at||""), type:"update-reply", updateId:r.update_id,
-      text:`The admin replied to your comment "${short}"`, ts:r.replied_at ? new Date(r.replied_at).getTime() : Date.now() };
+      text:`TFG admin replied to your comment "${short}": ${String(r.admin_reply||"")}`, ts:r.replied_at ? new Date(r.replied_at).getTime() : Date.now() };
   }
   async function loadReplyNotifications(){
     if(!navigator.onLine) return;
@@ -2486,7 +2577,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const id = "srv_"+payload.new.id;
       if(seenNotifIds.has(id)) return;
       seenNotifIds.add(id);
-      addNotification({ id, type:payload.new.type, text:payload.new.text, ts:new Date(payload.new.ts).getTime() }, true);
+      addNotification(window.OBGH_DB.srvNotif(id, payload.new.type, payload.new.text, new Date(payload.new.ts).getTime()), true);
     })
     .subscribe();
 
@@ -2597,12 +2688,35 @@ document.addEventListener("DOMContentLoaded", () => {
   let fontSize = 17;
   let currentTheme = "light";
   let chorusMode = "once";   // "once" = chorus shown once, as written  |  "repeat" = chorus after every verse
+  let showVerseWord = true, showVerseNum = true, showChorusLabel = true;
+  const DEFAULT_LH = 1.85, LH_MIN = 1.4, LH_MAX = 2.4;
+  const READ_FONTS = [
+    { id: "system",    name: "Sans-serif",  css: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" },
+    { id: "serif",     name: "Serif",       css: "Georgia,'Times New Roman',Times,serif" },
+    { id: "condensed", name: "Condensed",   css: "'Arial Narrow','Roboto Condensed',sans-serif-condensed,'Avenir Next Condensed','Helvetica Neue',sans-serif-condensed,sans-serif" },
+    { id: "typewriter",name: "Typewriter",  css: "'Courier New',Courier,monospace" },
+    { id: "script",    name: "Handwritten", css: "'Segoe Print','Bradley Hand','Comic Sans MS','Chalkboard SE','Comic Neue',cursive" }
+  ];
+  let lineHeight = DEFAULT_LH, fontFamilyId = "system", keepAwake = false;
+  const fontCss = () => (READ_FONTS.find(f => f.id === fontFamilyId) || READ_FONTS[0]).css;
+  function applyReadingStyle(el){
+    if(!el) return;
+    el.style.fontSize = fontSize + "px";
+    el.style.lineHeight = String(lineHeight);
+    el.style.fontFamily = fontCss();
+  }
   {
     const saved = getSettings();
+    if(saved.showVerseWord === false) showVerseWord = false;
+    if(saved.showVerseNum === false) showVerseNum = false;
+    if(saved.showChorusLabel === false) showChorusLabel = false;
     if(saved.chorusMode === "repeat" || saved.chorusMode === "once") chorusMode = saved.chorusMode;
     if(saved.language && languages.some(l => l.code === saved.language)){ activeLang = saved.language; defaultLang = saved.language; }
     if(saved.theme && THEMES.some(t => t.id === saved.theme)) currentTheme = saved.theme;
     if(saved.fontSize) fontSize = saved.fontSize;
+    if(typeof saved.lineHeight === "number" && saved.lineHeight >= LH_MIN && saved.lineHeight <= LH_MAX) lineHeight = saved.lineHeight;
+    if(saved.fontFamily && READ_FONTS.some(f => f.id === saved.fontFamily)) fontFamilyId = saved.fontFamily;
+    if(saved.keepAwake === true) keepAwake = true;
     if(saved.appTheme && APP_THEMES.some(t => t.id === saved.appTheme)) currentAppTheme = saved.appTheme;
   }
   applyAppTheme(currentAppTheme);
@@ -2839,7 +2953,16 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(ctrlTimer);
     ctrlTimer = setTimeout(() => { if(!songPanel.classList.contains("open")) setControls(false); }, 5000);
   }
+  let sliderActive = false, sliderTimer = null;
+  function sliderTouching(){ sliderActive = true; clearTimeout(sliderTimer); sliderTimer = null; clearTimeout(ctrlTimer); clearTimeout(scrollTimer); scrollTimer = null; }
+  function sliderReleased(){
+    if(!sliderActive) return;
+    sliderActive = false;
+    clearTimeout(sliderTimer);
+    sliderTimer = setTimeout(() => { sliderTimer = null; setControls(false); }, 3000);   // hide 3s after the finger leaves the slider
+  }
   function closePanel(){
+    sliderActive = false; clearTimeout(sliderTimer); sliderTimer = null;
     songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
     songPanel.classList.remove("open");
   }
@@ -2851,15 +2974,36 @@ document.addEventListener("DOMContentLoaded", () => {
     if(show) armAutoHide();
   }
   songScreen.addEventListener("click", (e) => {
+    if(presenting){
+      if(e.target.closest("#presentExit")){ if(history.state && history.state.present) history.back(); else exitPresent(); }
+      return;
+    }
     if(e.target.closest("#songControls")){ armAutoHide(); return; }   // using a control keeps it on screen
     if(e.target.closest(".song-header")) return;
     try{ if(String(window.getSelection()).length) return; }catch(err){}
     if(songPanel.classList.contains("open")){ closePanel(); armAutoHide(); return; }   // tap on the screen closes an open panel
     setControls(!ctrlVisible);
   });
+  { let sx = 0, sy = 0, st = 0, ok = false;
+    const skip = (t) => !!(t && t.closest && t.closest("#songControls, #songPanel, #presentExit"));
+    songScreen.addEventListener("touchstart", (e) => {
+      ok = false;
+      if(e.touches.length !== 1 || skip(e.target)) return;
+      ok = true; sx = e.touches[0].clientX; sy = e.touches[0].clientY; st = Date.now();
+    }, { passive: true });
+    songScreen.addEventListener("touchend", (e) => {
+      if(!ok || !e.changedTouches.length) return;
+      ok = false;
+      const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
+      if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - st < 900) presentStep(dx < 0 ? 1 : -1);
+    }, { passive: true });
+    songScreen.addEventListener("touchcancel", () => { ok = false; }, { passive: true });
+  }
   songLyricsWrap.addEventListener("scroll", () => {
     if(Date.now() - songOpenedAt < 500) return;
+    if(sliderActive || sliderTimer) return;
     if(songPanel.classList.contains("open")) closePanel();   // scrolling closes an open panel
+    if(sliderActive || sliderTimer) return;   // resizing text reflows the page; don't treat that as scrolling
     if(!ctrlVisible || scrollTimer) return;
     scrollTimer = setTimeout(() => { scrollTimer = null; setControls(false); }, 2000);
   }, { passive: true });
@@ -2921,20 +3065,74 @@ document.addEventListener("DOMContentLoaded", () => {
     // 3. render (verses are numbered in order; repeated choruses do not take a number)
     let verseNum = 0;
     return seq.map(b => {
-      if(b.type === "chorus") return `<div class="song-block song-chorus"><div class="song-block-label">CHORUS</div><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`;
-      if(b.type === "verse"){ verseNum++; return `<div class="song-block song-verse"><div class="song-block-label">VERSE ${verseNum}</div><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`; }
+      if(b.type === "chorus") return `<div class="song-block song-chorus${showChorusLabel ? "" : " gap-lg"}">${showChorusLabel ? '<div class="song-block-label">CHORUS</div>' : ""}<div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`;
+      if(b.type === "verse"){ verseNum++; const lbl = [showVerseWord ? "VERSE" : "", showVerseNum ? verseNum : ""].filter(x => x !== "").join(" "); return `<div class="song-block song-verse${lbl ? "" : " gap-lg"}">${lbl ? `<div class="song-block-label">${lbl}</div>` : ""}<div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`; }
       return `<div class="song-block song-verse"><div class="song-block-text">${escLyricsHtml(b.body)}</div></div>`;
     }).join("");
   }
-  function openSong(song, langCode){
+  /* ---- wake lock (keep screen awake) ---- */
+  let wakeLock = null;
+  async function syncWakeLock(){
+    const need = (keepAwake || presenting) && songScreen.classList.contains("open") && document.visibilityState === "visible";
+    try{
+      if(need && !wakeLock && navigator.wakeLock){
+        wakeLock = await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release", () => { wakeLock = null; });
+      } else if(!need && wakeLock){
+        const w = wakeLock; wakeLock = null; await w.release();
+      }
+    }catch(err){ wakeLock = null; }
+  }
+  document.addEventListener("visibilitychange", syncWakeLock);
+
+  /* ---- present mode ---- */
+  let presenting = false;
+  function songListFor(song){ return (song && hymnsByLang[song.langCode]) || []; }
+  function updatePresentPos(){
+    const el = document.getElementById("presentPos");
+    if(!el || !activeSong) return;
+    const list = songListFor(activeSong);
+    const i = list.findIndex(x => x.id === activeSong.id);
+    el.textContent = list.length ? `${activeSong.num}. ${activeSong.title}  \u00b7  ${i + 1} / ${list.length}` : "";
+  }
+  function enterPresent(){
+    if(!activeSong || presenting) return;
+    presenting = true;
+    songScreen.classList.add("present");
+    songScreen.dataset.theme = "dark";
+    history.pushState({ obghScreen: "song", present: true, songId: activeSong.id }, "", location.href);
+    closePanel(); setControls(false);
+    songLyricsWrap.scrollTop = 0;
+    updatePresentPos();
+    syncWakeLock();
+    showToast("Present mode \u2014 swipe left/right for next/previous hymn");
+  }
+  function exitPresent(){
+    if(!presenting) return;
+    presenting = false;
+    songScreen.classList.remove("present");
+    songScreen.dataset.theme = currentTheme;
+    syncWakeLock();
+  }
+  function presentStep(dir){
+    if(!activeSong || !songScreen.classList.contains("open")) return;
+    const list = songListFor(activeSong);
+    const i = list.findIndex(x => x.id === activeSong.id);
+    const next = list[i + dir];
+    if(!next){ showToast(dir > 0 ? "Last hymn" : "First hymn"); return; }
+    openSong(next, next.langCode, { noPush: true, keepControls: true });
+  }
+
+  function openSong(song, langCode, opts){
+    opts = opts || {};
     activeSong = song;
     const lang = languages.find(l => l.code === (langCode || activeLang));
     songHeaderTitle.textContent = `${song.num}. ${song.title}`;
     songHeaderSub.textContent = `${lang.label} · Key of ${song.key}`;
     songLyrics.innerHTML = formatLyrics(song.lyrics);
-    songLyrics.style.fontSize = fontSize + "px";
+    applyReadingStyle(songLyrics);
     document.getElementById("songFooterYear").textContent = new Date().getFullYear();
-    songScreen.dataset.theme = currentTheme;
+    songScreen.dataset.theme = presenting ? "dark" : currentTheme;
     songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
     songPanel.classList.remove("open");
     refreshFavUI();
@@ -2944,15 +3142,19 @@ document.addEventListener("DOMContentLoaded", () => {
     songOpenedAt = Date.now();
     placeControls();
     requestAnimationFrame(placeControls);
-    setControls(true);
-    history.pushState({ obghScreen: "song", songId: song.id }, "", location.href);
+    setControls(opts.keepControls ? ctrlVisible : !presenting);
+    if(presenting) updatePresentPos();
+    if(!opts.noPush) history.pushState({ obghScreen: "song", songId: song.id }, "", location.href);
+    syncWakeLock();
     logActivity(`Viewed "${song.title}"`, "song", { id: song.id, lang: langCode || activeLang });
   }
   function closeSong(){
+    presenting = false; songScreen.classList.remove("present");
     songScreen.classList.remove("open");
     songScreen.setAttribute("aria-hidden", "true");
     songScreen.style.top = ""; songScreen.style.height = ""; songScreen.style.bottom = "";
     activeSong = null;
+    syncWakeLock();
     clearTimeout(ctrlTimer); clearTimeout(scrollTimer); scrollTimer = null;
     if(hymnsScreen.classList.contains("open")){ const st = hymnsListEl.scrollTop; renderHymnsList(); hymnsListEl.scrollTop = st; }
     if(favoritesScreen.classList.contains("open")) renderFavoritesList();
@@ -3143,6 +3345,69 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function renderSettingsFont(){
     settingsFontVal.textContent = fontSize;
+    const sl = document.getElementById("settingsFontSlider");
+    if(sl) sl.value = fontSize;
+    const sp = document.getElementById("settingsSpacingSlider");
+    if(sp) sp.value = lineHeight;
+    const spv = document.getElementById("settingsSpacingVal");
+    if(spv) spv.textContent = lineHeight.toFixed(2).replace(/0$/, "");
+  }
+  const settingsFontFamilyListEl = document.getElementById("settingsFontFamilyList");
+  function renderSettingsFontFamily(){
+    settingsFontFamilyListEl.innerHTML = READ_FONTS.map(f => `
+      <button class="more-row" data-ffont="${f.id}" type="button">
+        <span class="more-row-label" style="font-family:${f.css};">${f.name}</span>
+        ${fontFamilyId === f.id ? '<span class="settings-check">&#10003;</span>' : ""}
+      </button>`).join("");
+  }
+  const settingsAwakeListEl = document.getElementById("settingsAwakeList");
+  function renderSettingsAwake(){
+    const supported = !!navigator.wakeLock;
+    settingsAwakeListEl.innerHTML = `
+      <button class="more-row" data-awake="1" type="button">
+        <span class="more-row-label">Keep screen awake while reading<div class="more-row-sub">${supported ? "Stops the screen dimming or locking while a hymn is open" : "Not supported on this browser"}</div></span>
+        ${keepAwake ? '<span class="settings-check">&#10003;</span>' : ""}
+      </button>`;
+  }
+  const settingsPreviewEl = document.getElementById("settingsPreview");
+  function renderSettingsPreview(){
+    if(!settingsPreviewEl) return;
+    let song = null;
+    const pools = [hymnsByLang[defaultLang] || [], ...languages.map(l => hymnsByLang[l.code] || [])];
+    for(const list of pools){ song = list.find(x => Number(x.num) === 1); if(song) break; }
+    if(!song) for(const list of pools){ if(list.length){ song = list[0]; break; } }
+    const SAMPLE = "Verse 1\nSample hymn text appears here\nso you can see your settings\n\nChorus\nThe chorus line goes here\nand repeats as you choose\n\nVerse 2\nA second verse follows\nwith the same look\n\nVerse 3\nA third verse completes\nthe sample preview";
+    // preview = the hymn's first three verses (plus its chorus); falls back to the sample if it has fewer than three
+    let lyrics = SAMPLE;
+    if(song){
+      const blocks = String(song.lyrics || "").split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+      const kept = []; let v = 0;
+      for(const bl of blocks){
+        if(/^verse\b/i.test(bl)){ if(v >= 3) break; v++; }
+        kept.push(bl);
+      }
+      if(v >= 3) lyrics = kept.join("\n\n");
+    }
+    document.getElementById("settingsPreviewTitle").textContent = song ? `${song.num}. ${song.title}` : "Sample hymn";
+    settingsPreviewEl.dataset.theme = currentTheme;
+    const el = document.getElementById("settingsPreviewLyrics");
+    el.innerHTML = formatLyrics(lyrics);
+    applyReadingStyle(el);
+  }
+  const settingsLabelListEl = document.getElementById("settingsLabelList");
+  function renderSettingsLabels(){
+    const preview = [showVerseWord ? "VERSE" : "", showVerseNum ? "1" : ""].filter(Boolean).join(" ");
+    const opts = [
+      { id: "verseWord",    on: showVerseWord,    label: "Show \u201cVERSE\u201d word",   sub: "The word VERSE above each verse" },
+      { id: "verseNum",     on: showVerseNum,     label: "Show verse number",            sub: "The number (1, 2, 3\u2026) above each verse" },
+      { id: "chorusLabel",  on: showChorusLabel,  label: "Show \u201cCHORUS\u201d label", sub: "The word CHORUS above each chorus" }
+    ];
+    settingsLabelListEl.innerHTML = opts.map(o => `
+      <button class="more-row" data-label="${o.id}" type="button">
+        <span class="more-row-label">${o.label}<div class="more-row-sub">${o.sub}</div></span>
+        ${o.on ? '<span class="settings-check">&#10003;</span>' : ""}
+      </button>`).join("") +
+      `<div class="more-row"><span class="more-row-label">Verse label preview<div class="more-row-sub">${preview ? preview : "(no label shown)"}</div></span></div>`;
   }
   const settingsChorusListEl = document.getElementById("settingsChorusList");
   function renderSettingsChorus(){
@@ -3158,10 +3423,14 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   function renderSettings(){
     renderSettingsChorus();
+    renderSettingsLabels();
+    renderSettingsPreview();
     renderSettingsLanguages();
     renderSettingsAppTheme();
     renderSettingsTheme();
     renderSettingsFont();
+    renderSettingsFontFamily();
+    renderSettingsAwake();
   }
 
   function openSettings(){
@@ -3194,15 +3463,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!btn) return;
     chorusMode = btn.dataset.chorus === "repeat" ? "repeat" : "once";
     saveSettings({ chorusMode });
-    renderSettingsChorus();
+    renderSettingsChorus(); renderSettingsPreview();
     showToast(chorusMode === "repeat" ? "Chorus will show after every verse" : "Chorus will show once only");
+  });
+  settingsLabelListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-label]");
+    if(!btn) return;
+    const id = btn.dataset.label;
+    if(id === "verseWord"){ showVerseWord = !showVerseWord; saveSettings({ showVerseWord }); }
+    else if(id === "verseNum"){ showVerseNum = !showVerseNum; saveSettings({ showVerseNum }); }
+    else if(id === "chorusLabel"){ showChorusLabel = !showChorusLabel; saveSettings({ showChorusLabel }); }
+    renderSettingsLabels(); renderSettingsPreview();
   });
   settingsThemeRowEl.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-theme]");
     if(!btn) return;
     currentTheme = btn.dataset.theme;
     saveSettings({ theme: currentTheme });
-    renderSettingsTheme();
+    renderSettingsTheme(); renderSettingsPreview();
     showToast("Default reading theme updated");
   });
   settingsAppThemeRowEl.addEventListener("click", (e) => {
@@ -3214,15 +3492,38 @@ document.addEventListener("DOMContentLoaded", () => {
     const t = APP_THEMES.find(x => x.id === currentAppTheme);
     showToast(`${t ? t.name : "App"} theme applied`);
   });
-  document.getElementById("settingsFontMinus").addEventListener("click", () => {
-    fontSize = Math.max(FONT_MIN, fontSize - FONT_STEP);
+  document.getElementById("settingsFontSlider").addEventListener("input", (e) => {
+    fontSize = Math.min(FONT_MAX, Math.max(FONT_MIN, parseInt(e.target.value, 10) || fontSize));
+    settingsFontVal.textContent = fontSize;
     saveSettings({ fontSize });
-    renderSettingsFont();
+    applyReadingStyle(document.getElementById("settingsPreviewLyrics"));
   });
-  document.getElementById("settingsFontPlus").addEventListener("click", () => {
-    fontSize = Math.min(FONT_MAX, fontSize + FONT_STEP);
-    saveSettings({ fontSize });
+  document.getElementById("settingsSpacingSlider").addEventListener("input", (e) => {
+    lineHeight = Math.min(LH_MAX, Math.max(LH_MIN, parseFloat(e.target.value) || DEFAULT_LH));
+    saveSettings({ lineHeight });
     renderSettingsFont();
+    applyReadingStyle(document.getElementById("settingsPreviewLyrics"));
+  });
+  settingsFontFamilyListEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-ffont]"); if(!b) return;
+    fontFamilyId = b.dataset.ffont;
+    saveSettings({ fontFamily: fontFamilyId });
+    renderSettingsFontFamily(); renderSettingsPreview();
+  });
+  settingsAwakeListEl.addEventListener("click", (e) => {
+    if(!e.target.closest("[data-awake]")) return;
+    keepAwake = !keepAwake;
+    saveSettings({ keepAwake });
+    renderSettingsAwake();
+    showToast(keepAwake ? "Screen will stay awake while reading" : "Screen awake turned off");
+  });
+  document.getElementById("settingsResetBtn").addEventListener("click", () => {
+    if(!confirm("Reset all reading settings to their defaults?")) return;
+    fontSize = 17; currentTheme = "light"; lineHeight = DEFAULT_LH; fontFamilyId = "system";
+    chorusMode = "once"; showVerseWord = showVerseNum = showChorusLabel = true; keepAwake = false;
+    saveSettings({ fontSize, theme: currentTheme, lineHeight, fontFamily: fontFamilyId, chorusMode, showVerseWord, showVerseNum, showChorusLabel, keepAwake });
+    renderSettings();
+    showToast("Reading settings reset");
   });
 
   /* ---- User Guide screen ---- */
@@ -3335,6 +3636,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const state = e.state;
     if(songScreen.classList.contains("open") && (!state || state.obghScreen !== "song")){
       closeSong();
+    } else if(presenting && !(state && state.present)){
+      exitPresent();
     }
     if(window.NB) window.NB.closeOverlays();
     LIST_SCREENS.forEach(({ name, el, close }) => {
@@ -3359,11 +3662,24 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderPanel(ctrl){
     if(ctrl === "fontsize"){
       songPanel.innerHTML =
-        `<div class="fontsize-row">` +
-          `<button class="fontsize-step" id="fontMinus" type="button" aria-label="Decrease text size">&minus;</button>` +
+        `<div class="fs-slider-wrap">` +
+          `<span class="fs-a" style="font-size:13px;">A</span>` +
+          `<input type="range" class="fs-slider" id="fontSlider" min="${FONT_MIN}" max="${FONT_MAX}" step="${FONT_STEP}" value="${fontSize}" aria-label="Text size">` +
+          `<span class="fs-a" style="font-size:24px;">A</span>` +
           `<span class="fontsize-val" id="fontVal">${fontSize}</span>` +
-          `<button class="fontsize-step" id="fontPlus" type="button" aria-label="Increase text size">+</button>` +
         `</div>`;
+    } else if(ctrl === "spacing"){
+      songPanel.innerHTML =
+        `<div class="fs-slider-wrap">` +
+          `<span class="fs-a" style="font-size:13px;">&#8801;</span>` +
+          `<input type="range" class="fs-slider" id="spacingSlider" min="${LH_MIN}" max="${LH_MAX}" step="0.05" value="${lineHeight}" aria-label="Line spacing">` +
+          `<span class="fs-a" style="font-size:20px;">&#8801;</span>` +
+          `<span class="fontsize-val" id="spacingVal">${lineHeight.toFixed(2).replace(/0$/, "")}</span>` +
+        `</div>`;
+    } else if(ctrl === "font"){
+      songPanel.innerHTML = `<div class="font-choice-row">${READ_FONTS.map(f =>
+        `<button class="font-choice ${fontFamilyId === f.id ? "active" : ""}" data-font="${f.id}" style="font-family:${f.css};" type="button">${f.name}</button>`
+      ).join("")}</div>`;
     } else if(ctrl === "theme"){
       songPanel.innerHTML = `<div class="theme-swatch-row">${THEMES.map(t =>
         `<button class="theme-swatch ${currentTheme === t.id ? "active" : ""}" data-theme="${t.id}" style="background:${t.color};" type="button" aria-label="${t.id} theme"></button>`
@@ -3378,6 +3694,7 @@ document.addEventListener("DOMContentLoaded", () => {
       toggleFavorite();
       return;
     }
+    if(tab.dataset.ctrl === "present"){ enterPresent(); return; }
     const wasOpen = tab.classList.contains("open");
     songControlTabs.querySelectorAll(".ctrl-tab").forEach(t => t.classList.remove("open"));
     if(wasOpen){
@@ -3391,16 +3708,31 @@ document.addEventListener("DOMContentLoaded", () => {
     clearTimeout(ctrlTimer);
   });
 
-  songPanel.addEventListener("click", (e) => {
-    const minusBtn = e.target.closest("#fontMinus");
-    const plusBtn = e.target.closest("#fontPlus");
-    if(minusBtn || plusBtn){
-      fontSize = minusBtn
-        ? Math.max(FONT_MIN, fontSize - FONT_STEP)
-        : Math.min(FONT_MAX, fontSize + FONT_STEP);
-      songLyrics.style.fontSize = fontSize + "px";
-      renderPanel("fontsize");
+  const isSlider = (t) => t.id === "fontSlider" || t.id === "spacingSlider";
+  songPanel.addEventListener("pointerdown", (e) => { if(isSlider(e.target)) sliderTouching(); });
+  ["pointerup","pointercancel","touchend","touchcancel","mouseup"].forEach(ev => document.addEventListener(ev, sliderReleased, true));
+  songPanel.addEventListener("keydown", (e) => { if(isSlider(e.target)){ sliderTouching(); sliderReleased(); } });
+  songPanel.addEventListener("input", (e) => {
+    if(!isSlider(e.target)) return;
+    if(!sliderActive) { sliderTouching(); sliderReleased(); } else sliderTouching();
+    if(e.target.id === "fontSlider"){
+      fontSize = parseInt(e.target.value, 10) || fontSize;
+      const v = document.getElementById("fontVal"); if(v) v.textContent = fontSize;
       saveSettings({ fontSize });
+    } else {
+      lineHeight = Math.min(LH_MAX, Math.max(LH_MIN, parseFloat(e.target.value) || DEFAULT_LH));
+      const v = document.getElementById("spacingVal"); if(v) v.textContent = lineHeight.toFixed(2).replace(/0$/, "");
+      saveSettings({ lineHeight });
+    }
+    applyReadingStyle(songLyrics);
+  });
+  songPanel.addEventListener("click", (e) => {
+    const fontBtn = e.target.closest("[data-font]");
+    if(fontBtn){
+      fontFamilyId = fontBtn.dataset.font;
+      applyReadingStyle(songLyrics);
+      saveSettings({ fontFamily: fontFamilyId });
+      renderPanel("font");
       return;
     }
     const themeBtn = e.target.closest("[data-theme]");

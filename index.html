@@ -14,6 +14,37 @@
   }catch(e){}
 })();
 </script>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+<link rel="preconnect" href="https://xdlbeepqqbstchjcepgw.supabase.co" crossorigin>
+<script>
+// Loads the Supabase library WITHOUT blocking the app. (It used to be a normal <script> tag, so on a
+// slow or stalled connection the browser sat waiting for it - sometimes for minutes - before any of
+// the app's code could run.) Slow CDN -> next CDN after 6s. The app opens straight away either way.
+(function(){
+  var urls = ["https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js",
+              "https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"];
+  var i = 0, finished = false;
+  window.__OBGH_NO_SB = false;
+  function ok(){
+    if(finished || !window.supabase) return;
+    finished = true; window.__OBGH_NO_SB = false;
+    try{ window.dispatchEvent(new Event("obgh-sb-ready")); }catch(e){}
+  }
+  function next(){
+    if(finished) return;
+    if(window.supabase) return ok();
+    if(i >= urls.length){ window.__OBGH_NO_SB = true; return; }
+    var s = document.createElement("script");
+    s.src = urls[i++]; s.async = true; s.crossOrigin = "anonymous";
+    var t = setTimeout(next, 6000);
+    s.onload = function(){ clearTimeout(t); ok(); };
+    s.onerror = function(){ clearTimeout(t); next(); };
+    document.head.appendChild(s);
+  }
+  window.__OBGH_retrySB = function(){ if(!finished){ i = 0; next(); } };
+  next();
+})();
+</script>
 <link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#1E3FAE">
 <meta property="og:type" content="website">
@@ -545,6 +576,11 @@
 .song-controls{position:absolute;left:0;right:0;top:64px;z-index:5;background:var(--song-bg,#fff);box-shadow:0 6px 14px rgba(0,0,0,.10);transition:opacity .25s ease,transform .25s ease,visibility 0s linear 0s;}
 .song-controls.hide{opacity:0;transform:translateY(-10px);visibility:hidden;pointer-events:none;transition:opacity .25s ease,transform .25s ease,visibility 0s linear .25s;}
 .song-lyrics-wrap{padding-top:78px !important;}
+.song-lyrics-wrap{display:flex;flex-direction:column;}
+.song-lyrics-wrap > .song-lyrics{flex:1 0 auto;}
+.song-lyrics-wrap > .song-footer{flex:0 0 auto;margin-top:16px !important;}
+/* long-press lock: freezes scrolling and next/previous swipe */
+.song-screen.locked .song-lyrics-wrap{overflow-y:hidden !important;touch-action:none;}
 .song-footer{margin:16px 0 0;padding-top:10px;border-top:1px solid rgba(120,120,140,0.22);text-align:center;font-size:11.5px;line-height:1.5;opacity:.65;font-weight:600;}
 .song-num{position:relative;width:39px;height:39px;border:2.5px solid var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--blue);flex-shrink:0;}
 .song-mark-heart{flex-shrink:0;color:var(--red,#e11d48);font-size:18px;line-height:1;margin-left:2px;}
@@ -1319,7 +1355,6 @@
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js" crossorigin="anonymous" onerror="window.__OBGH_NO_SB=true"></script>
 <script>
 // ---------- SUPABASE (shared across every script block in this page) ----------
 window.OBGH_DB = (function(){
@@ -1335,10 +1370,64 @@ window.OBGH_DB = (function(){
     });
     return mk();
   }
+  // The library now loads in the background (see <head>). Until it arrives, `sb` is a lazy stand-in that
+  // queues each call and replays it on the real client the moment it is ready; a call that waits more
+  // than 10s gives up with the usual "offline" result so the app never hangs on it.
+  let realClient = null;
+  let readyResolve;
+  const readyP = new Promise(r => { readyResolve = r; });
+  function tryMake(){
+    if(realClient || !window.supabase) return;
+    try{ realClient = supabase.createClient(SB_URL, SB_KEY); }catch(e){ return; }
+    sb = realClient; readyResolve(realClient);
+  }
+  const OFFLINE = { offline:true }, OFFLINE_RES = { data:null, error:{ message:"offline" } }, NODE = Symbol("node");
+  function waitClient(){
+    if(realClient) return Promise.resolve(realClient);
+    return Promise.race([readyP, new Promise(r => setTimeout(() => r(null), 10000))]);
+  }
+  function mkNode(run0, eager){
+    let p = null;
+    const run = () => p || (p = run0());
+    if(eager) run().catch(() => {});
+    return new Proxy(function(){}, {
+      get(_, k){
+        if(k === NODE) return run;
+        if(k === "then") return (ok, bad) => run().then(w => w.v, e => e === OFFLINE ? OFFLINE_RES : Promise.reject(e)).then(ok, bad);
+        if(typeof k === "symbol") return undefined;
+        return mkMember(run, k, eager);
+      }
+    });
+  }
+  function mkMember(parentRun, key, eager){
+    const valRun = () => parentRun().then(w => ({ v: w.v[key] }));
+    return new Proxy(function(){}, {
+      apply(_, __, args){
+        return mkNode(async () => {
+          const w = await parentRun();
+          const real = await Promise.all(args.map(a => (a && a[NODE]) ? a[NODE]().then(x => x.v) : a));
+          return { v: w.v[key].apply(w.v, real) };
+        }, eager);
+      },
+      get(_, k){
+        if(k === NODE) return valRun;
+        if(k === "then") return (ok, bad) => valRun().then(w => w.v, e => e === OFFLINE ? OFFLINE_RES : Promise.reject(e)).then(ok, bad);
+        if(typeof k === "symbol") return undefined;
+        return mkMember(valRun, k, eager);
+      }
+    });
+  }
+  function lazyClient(){
+    const root = () => waitClient().then(c => { if(!c) throw OFFLINE; return { v:c }; });
+    return new Proxy({}, { get(_, k){
+      if(typeof k === "symbol" || k === "then") return undefined;
+      return mkMember(root, k, k === "channel" || k === "removeChannel");
+    } });
+  }
   let sb;
-  try{ sb = window.supabase ? supabase.createClient(SB_URL, SB_KEY) : offlineStub(); }
-  catch(e){ window.__OBGH_NO_SB = true; sb = offlineStub(); }
-  if(!window.supabase) window.__OBGH_NO_SB = true;
+  tryMake();
+  window.addEventListener("obgh-sb-ready", tryMake);
+  if(!realClient) sb = lazyClient();
 
   function deviceId(){
     let id = localStorage.getItem("obgh_device_id");
@@ -2239,7 +2328,7 @@ document.addEventListener("DOMContentLoaded", () => {
   refreshCarouselUpdates();
   document.addEventListener("visibilitychange", () => { if(document.visibilityState==="visible"){ refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(); } });
   // The moment the phone gets internet again, quietly bring songs and updates up to date.
-  window.addEventListener("online", () => { refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(); });
+  window.addEventListener("online", () => { refreshCarouselUpdates(); if(typeof window.OBGH_refreshSongs==="function") window.OBGH_refreshSongs(true); });
 
   const toastEl = document.getElementById("toast");
   let toastTimer;
@@ -2633,15 +2722,30 @@ document.addEventListener("DOMContentLoaded", () => {
   (function loadCachedSongs(){
     try{ applyLiveSongs(JSON.parse(localStorage.getItem(LIVE_SONGS_CACHE_KEY))); }catch(e){}
   })();
-  async function loadLiveSongs(){
-    if(!navigator.onLine) return;
-    const liveSongs = await window.OBGH_DB.fetchSongs();
-    if(!liveSongs.length) return; // offline or nothing added yet — cached/built-in hymns still work
-    try{ localStorage.setItem(LIVE_SONGS_CACHE_KEY, JSON.stringify(liveSongs)); }catch(e){}
-    applyLiveSongs(liveSongs);
+  // One download at a time, and not more than once every 5 minutes (opening the app used to trigger
+  // 3-4 full downloads of every hymn). `force` (coming back online) skips the 5-minute wait.
+  let songsInflight = null, songsFetchedAt = 0;
+  function loadLiveSongs(force){
+    if(!navigator.onLine) return Promise.resolve();
+    if(songsInflight) return songsInflight;
+    if(force !== true && Date.now() - songsFetchedAt < 300000) return Promise.resolve();
+    songsInflight = (async () => {
+      try{
+        const liveSongs = await Promise.race([
+          window.OBGH_DB.fetchSongs(),
+          new Promise(r => setTimeout(() => r([]), 30000))   // a stalled connection must not block later refreshes
+        ]);
+        if(!liveSongs.length) return; // offline or nothing added yet — cached hymns still work
+        songsFetchedAt = Date.now();
+        try{ localStorage.setItem(LIVE_SONGS_CACHE_KEY, JSON.stringify(liveSongs)); }catch(e){}
+        applyLiveSongs(liveSongs);
+      }finally{ songsInflight = null; }
+    })();
+    return songsInflight;
   }
   window.OBGH_refreshSongs = loadLiveSongs;
-  loadLiveSongs();
+  // hymns already saved on the phone show instantly; the fresh copy is fetched just after the first paint
+  setTimeout(() => loadLiveSongs(true), ALL_SONGS.length ? 1200 : 0);
 
   const THEMES = [
     { id: "light",  color: "#ffffff" },
@@ -2984,6 +3088,33 @@ document.addEventListener("DOMContentLoaded", () => {
     if(songPanel.classList.contains("open")){ closePanel(); armAutoHide(); return; }   // tap on the screen closes an open panel
     setControls(!ctrlVisible);
   });
+  let songLocked = false;
+  function setSongLock(on){
+    songLocked = on;
+    songScreen.classList.toggle("locked", on);
+    try{ const sel = window.getSelection(); if(sel) sel.removeAllRanges(); }catch(err){}
+    try{ if(navigator.vibrate) navigator.vibrate(on ? [30, 40, 30] : 30); }catch(err){}
+    showToast(on ? "\uD83D\uDD12 Locked \u2014 scroll & swipe off. Long press to unlock" : "\uD83D\uDD13 Unlocked");
+  }
+  { let lx = 0, ly = 0, lt = null, longFired = false;
+    const lskip = (t) => !!(t && t.closest && t.closest("#songControls, #songPanel, #presentExit, .song-header"));
+    const lclear = () => { clearTimeout(lt); lt = null; };
+    songScreen.addEventListener("touchstart", (e) => {
+      lclear(); longFired = false;
+      if(e.touches.length !== 1 || lskip(e.target)) return;
+      lx = e.touches[0].clientX; ly = e.touches[0].clientY;
+      lt = setTimeout(() => { lt = null; longFired = true; setSongLock(!songLocked); }, 600);
+    }, { passive: true });
+    songScreen.addEventListener("touchmove", (e) => {
+      if(!lt) return;
+      const t = e.touches[0];
+      if(Math.abs(t.clientX - lx) > 10 || Math.abs(t.clientY - ly) > 10) lclear();
+    }, { passive: true });
+    ["touchend", "touchcancel"].forEach(ev => songScreen.addEventListener(ev, lclear, { passive: true }));
+    songScreen.addEventListener("contextmenu", (e) => { if(!lskip(e.target)) e.preventDefault(); });
+    // swallow the click that follows a long press so it doesn't also toggle the controls bar
+    songScreen.addEventListener("click", (e) => { if(longFired){ longFired = false; e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+  }
   { let sx = 0, sy = 0, st = 0, ok = false;
     const skip = (t) => !!(t && t.closest && t.closest("#songControls, #songPanel, #presentExit"));
     songScreen.addEventListener("touchstart", (e) => {
@@ -2994,6 +3125,7 @@ document.addEventListener("DOMContentLoaded", () => {
     songScreen.addEventListener("touchend", (e) => {
       if(!ok || !e.changedTouches.length) return;
       ok = false;
+      if(songLocked) return;
       const dx = e.changedTouches[0].clientX - sx, dy = e.changedTouches[0].clientY - sy;
       if(Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.6 && Date.now() - st < 900) presentStep(dx < 0 ? 1 : -1);
     }, { passive: true });
@@ -3115,7 +3247,7 @@ document.addEventListener("DOMContentLoaded", () => {
     syncWakeLock();
   }
   function presentStep(dir){
-    if(!activeSong || !songScreen.classList.contains("open")) return;
+    if(songLocked || !activeSong || !songScreen.classList.contains("open")) return;
     const list = songListFor(activeSong);
     const i = list.findIndex(x => x.id === activeSong.id);
     const next = list[i + dir];
@@ -3149,6 +3281,7 @@ document.addEventListener("DOMContentLoaded", () => {
     logActivity(`Viewed "${song.title}"`, "song", { id: song.id, lang: langCode || activeLang });
   }
   function closeSong(){
+    songLocked = false; songScreen.classList.remove("locked");
     presenting = false; songScreen.classList.remove("present");
     songScreen.classList.remove("open");
     songScreen.setAttribute("aria-hidden", "true");
@@ -6697,10 +6830,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 16px color-mix(in srgb, var(-
   if(document.readyState === "complete") start(); else window.addEventListener("load", start);
   window.addEventListener("online", function(){
     // if the Supabase library never loaded while offline, reload once now that we can fetch it
-    if(window.__OBGH_NO_SB && !sessionStorage.getItem("obgh_sb_retry")){
-      try{ sessionStorage.setItem("obgh_sb_retry", "1"); }catch(e){}
-      location.reload(); return;
-    }
+    if(window.__OBGH_NO_SB && window.__OBGH_retrySB){ window.__OBGH_retrySB(); }
     setTimeout(function(){ run("online"); }, 1500);
   });
   document.addEventListener("visibilitychange", function(){ if(document.visibilityState === "visible") run("visible"); });

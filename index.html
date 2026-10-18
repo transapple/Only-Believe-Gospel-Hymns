@@ -579,8 +579,7 @@
 .song-lyrics-wrap{display:flex;flex-direction:column;}
 .song-lyrics-wrap > .song-lyrics{flex:1 0 auto;}
 .song-lyrics-wrap > .song-footer{flex:0 0 auto;margin-top:16px !important;}
-/* long-press lock: freezes scrolling and next/previous swipe */
-.song-screen.locked .song-lyrics-wrap{overflow-y:hidden !important;touch-action:none;}
+/* long-press lock: only blocks the left/right swipe to the next/previous hymn; up/down scrolling of the current hymn stays active */
 .song-footer{margin:16px 0 0;padding-top:10px;border-top:1px solid rgba(120,120,140,0.22);text-align:center;font-size:11.5px;line-height:1.5;opacity:.65;font-weight:600;}
 .song-num{position:relative;width:39px;height:39px;border:2.5px solid var(--blue);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:var(--blue);flex-shrink:0;}
 .song-mark-heart{flex-shrink:0;color:var(--red,#e11d48);font-size:18px;line-height:1;margin-left:2px;}
@@ -3094,7 +3093,7 @@ document.addEventListener("DOMContentLoaded", () => {
     songScreen.classList.toggle("locked", on);
     try{ const sel = window.getSelection(); if(sel) sel.removeAllRanges(); }catch(err){}
     try{ if(navigator.vibrate) navigator.vibrate(on ? [30, 40, 30] : 30); }catch(err){}
-    showToast(on ? "\uD83D\uDD12 Locked \u2014 scroll & swipe off. Long press to unlock" : "\uD83D\uDD13 Unlocked");
+    showToast(on ? "\uD83D\uDD12 Locked \u2014 swipe to next/previous hymn is off. Long press to unlock" : "\uD83D\uDD13 Unlocked");
   }
   { let lx = 0, ly = 0, lt = null, longFired = false;
     const lskip = (t) => !!(t && t.closest && t.closest("#songControls, #songPanel, #presentExit, .song-header"));

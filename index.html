@@ -164,7 +164,7 @@
   }
   .status-icons{display:flex; align-items:center; gap:calc(5 * var(--u));}
 
-  .scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:contain; padding-bottom:calc(50 * var(--u));}
+  .scroll-area{flex:1; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior-y:auto; touch-action:pan-y; padding-bottom:calc(50 * var(--u));}
   .scroll-area::-webkit-scrollbar{display:none;}
 
   .top-nav{
@@ -6920,7 +6920,7 @@ body[data-app-theme="dark"] .bc-fab{box-shadow:0 0 calc(16 * var(--u)) color-mix
 
   function syncFixedBarOffsets(){
     if(scrollArea && topNav) scrollArea.style.paddingTop = topNav.offsetHeight + 'px';
-    if(scrollArea && bottomNav) scrollArea.style.paddingBottom = (bottomNav.offsetHeight + 12) + 'px';
+    if(scrollArea && bottomNav) scrollArea.style.paddingBottom = (bottomNav.offsetHeight + 150) + 'px';
   }
 
   syncFixedBarOffsets();

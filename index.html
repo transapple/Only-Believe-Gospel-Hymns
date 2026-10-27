@@ -1584,8 +1584,16 @@ window.OBGH_DB = (function(){
   }
 
   async function fetchSongs(){
-    const { data, error } = await sb.from("songs").select("*").order("num", { ascending:true });
-    if(error){ console.error("OBGH_DB.fetchSongs", error); return []; }
+    // The database returns at most 1000 rows per request, so fetch the songs in pages.
+    const PAGE = 1000;
+    let data = [];
+    for(let from = 0; ; from += PAGE){
+      const res = await sb.from("songs").select("*").order("num", { ascending:true }).order("id", { ascending:true }).range(from, from + PAGE - 1);
+      if(res.error){ console.error("OBGH_DB.fetchSongs", res.error); return []; }
+      const chunk = res.data || [];
+      data = data.concat(chunk);
+      if(chunk.length < PAGE) break;
+    }
     return (data||[]).map(r=>({ id:r.id, num:r.num, title:r.title, key:r.key, lyrics:r.lyrics, snippet:r.snippet, langCode:r.lang_code }));
   }
   async function fetchUpdates(){
@@ -2822,11 +2830,11 @@ document.addEventListener("DOMContentLoaded", () => {
   /* ================= HYMNS ================= */
   const languages = [
     { code: "alur",    label: "Alur" },
-    { code: "acholi",  label: "Acholi" },
     { code: "english", label: "English" },
     { code: "french",  label: "French" },
+    { code: "luganda", label: "Luganda" },
     { code: "swahili", label: "Swahili" },
-    { code: "luganda", label: "Luganda" }
+    { code: "acholi",  label: "Acholi" }
   ];
 
   // Hymns come entirely from Supabase (posted via the TFG Admin app) — no

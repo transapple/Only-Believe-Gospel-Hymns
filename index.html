@@ -567,6 +567,7 @@
 .song-item-main{flex:1;min-width:0;display:flex;flex-direction:column;}
 .song-item-title{font-size:calc(calc(17 * var(--u)) / var(--fs));font-weight:900;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .song-item-snippet{font-size:calc(calc(12 * var(--u)) / var(--fs));color:var(--ink-soft);margin-top:calc(3 * var(--u));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.song-item-en{font-size:calc(calc(13 * var(--u)) / var(--fs));font-weight:700;color:var(--blue);margin-top:calc(2 * var(--u));white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .song-key{flex-shrink:0;font-size:calc(calc(11.5 * var(--u)) / var(--fs));font-weight:800;color:var(--blue);background:var(--gold-soft);padding:calc(4 * var(--u)) calc(9 * var(--u));border-radius:calc(8 * var(--u));}
 .hymns-empty{text-align:center;color:var(--ink-soft);font-size:calc(calc(13 * var(--u)) / var(--fs));padding:calc(40 * var(--u)) calc(20 * var(--u));}
 
@@ -597,6 +598,9 @@
 .song-header-title{flex:1;min-width:0;}
 .song-num-title{font-size:calc(calc(15.5 * var(--u)) / var(--fs));font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .song-header-sub{font-size:calc(calc(11.5 * var(--u)) / var(--fs));opacity:.65;margin-top:calc(2 * var(--u));}
+.song-header-en{font-size:calc(calc(12.5 * var(--u)) / var(--fs));font-weight:700;color:var(--blue);margin-top:calc(2 * var(--u));text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.song-header-en:empty{display:none;}
+.song-screen[data-theme="dark"] .song-header-en,.song-screen[data-theme="night"] .song-header-en,.song-screen[data-theme="red"] .song-header-en,.song-screen[data-theme="green"] .song-header-en,.song-screen[data-theme="purple"] .song-header-en{color:#8FB4FF;}
 .song-fav-btn{width:calc(36 * var(--u));height:calc(36 * var(--u));border-radius:50%;border:none;background:rgba(120,120,140,0.12);color:var(--red);font-size:calc(calc(17 * var(--u)) / var(--fs));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 
 .song-control-tabs{display:flex;gap:calc(8 * var(--u));padding:calc(10 * var(--u)) calc(16 * var(--u));overflow-x:auto;-webkit-overflow-scrolling:touch;flex-shrink:0;border-bottom:calc(1 * var(--u)) solid rgba(120,120,140,0.12);}
@@ -937,6 +941,7 @@
       <span class="song-head-spacer" aria-hidden="true"></span>
       <div class="song-header-title">
         <div class="song-num-title" id="songHeaderTitle"></div>
+        <div class="song-header-en" id="songHeaderEn"></div>
         <div class="song-header-sub" id="songHeaderSub"></div>
       </div>
       <button class="song-fav-btn" id="songFavBtn" type="button" aria-label="Toggle favorite">&#9825;</button>
@@ -1307,6 +1312,10 @@
         <div class="more-list" id="settingsAwakeList"></div>
       </div>
       <div class="more-section">
+        <div class="more-section-title">10. English Title Under the Hymn Title</div>
+        <div class="more-list" id="settingsEnglishList"></div>
+      </div>
+      <div class="more-section">
         <div class="more-list">
           <button class="more-row" id="settingsResetBtn" type="button">
             <span class="more-row-label">Put everything back as it was<div class="more-row-sub">Words, lines, letters, colours, headings and chorus all go back to the start</div></span>
@@ -1594,7 +1603,7 @@ window.OBGH_DB = (function(){
       data = data.concat(chunk);
       if(chunk.length < PAGE) break;
     }
-    return (data||[]).map(r=>({ id:r.id, num:r.num, title:r.title, key:r.key, lyrics:r.lyrics, snippet:r.snippet, langCode:r.lang_code }));
+    return (data||[]).map(r=>({ id:r.id, num:r.num, title:r.title, key:r.key, lyrics:r.lyrics, snippet:r.snippet, langCode:r.lang_code, englishTitle:r.english_title }));
   }
   async function fetchUpdates(){
     const { data, error } = await sb.from("updates").select("*").order("created_at", { ascending:false });
@@ -2938,6 +2947,7 @@ document.addEventListener("DOMContentLoaded", () => {
   let currentTheme = "light";
   let chorusMode = "once";   // "once" = chorus shown once, as written  |  "repeat" = chorus after every verse
   let showVerseWord = true, showVerseNum = true, showChorusLabel = true;
+  let showEnTitleList = true, showEnTitleRead = true;
   const DEFAULT_LH = 1.85, LH_MIN = 1.4, LH_MAX = 2.4;
   const READ_FONTS = [
     { id: "system",    name: "Sans-serif",  css: "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" },
@@ -2959,6 +2969,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if(saved.showVerseWord === false) showVerseWord = false;
     if(saved.showVerseNum === false) showVerseNum = false;
     if(saved.showChorusLabel === false) showChorusLabel = false;
+    if(saved.showEnTitleList === false) showEnTitleList = false;
+    if(saved.showEnTitleRead === false) showEnTitleRead = false;
     if(saved.chorusMode === "repeat" || saved.chorusMode === "once") chorusMode = saved.chorusMode;
     if(saved.language && languages.some(l => l.code === saved.language)){ activeLang = saved.language; defaultLang = saved.language; }
     if(saved.theme && THEMES.some(t => t.id === saved.theme)) currentTheme = saved.theme;
@@ -3102,6 +3114,17 @@ document.addEventListener("DOMContentLoaded", () => {
     return out.map(o => o.song);
   }
 
+  // Blue English title under each hymn title. English hymns show none. A hymn's own
+  // englishTitle (set per song, used for Swahili) wins; otherwise the English hymn with the
+  // same number is used (Alur, French, Luganda, Acholi share English numbering).
+  function englishTitleFor(song){
+    if(!song || song.langCode === "english") return "";
+    if(song.englishTitle && String(song.englishTitle).trim()) return String(song.englishTitle).trim();
+    if(song.langCode === "swahili") return "";
+    const en = (hymnsByLang.english || []).find(s => s.num === song.num);
+    return en ? en.title : "";
+  }
+
   function renderHymnsList(){
     const list = getFilteredHymns();
     const searching = !!hymnsSearchQuery.trim();
@@ -3114,6 +3137,7 @@ document.addEventListener("DOMContentLoaded", () => {
         <span class="song-item-main">
           ${badge}
           <span class="song-item-title">${song.title}</span>
+          ${(showEnTitleList && englishTitleFor(song)) ? `<span class="song-item-en">${englishTitleFor(song)}</span>` : ""}
           <span class="song-item-snippet">${line || ""}</span>
         </span>
         ${isFavorite(song.id) ? '<span class="song-mark-heart" aria-label="Favorite">&#9829;</span>' : ""}
@@ -3187,6 +3211,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const songScreen = document.getElementById("songScreen");
   const songHeaderTitle = document.getElementById("songHeaderTitle");
   const songHeaderSub = document.getElementById("songHeaderSub");
+  const songHeaderEn = document.getElementById("songHeaderEn");
   const songFavBtn = document.getElementById("songFavBtn");
   const ctrlFavTab = document.getElementById("ctrlFavTab");
   const songControlTabs = document.getElementById("songControlTabs");
@@ -3405,6 +3430,7 @@ document.addEventListener("DOMContentLoaded", () => {
     activeSong = song;
     const lang = languages.find(l => l.code === (langCode || activeLang));
     songHeaderTitle.textContent = `${song.num}. ${song.title}`;
+    songHeaderEn.textContent = showEnTitleRead ? englishTitleFor(song) : "";
     songHeaderSub.textContent = `${lang.label} · Key of ${song.key}`;
     songLyrics.innerHTML = formatLyrics(song.lyrics);
     applyReadingStyle(songLyrics);
@@ -3680,6 +3706,18 @@ document.addEventListener("DOMContentLoaded", () => {
     el.innerHTML = formatLyrics(lyrics);
     applyReadingStyle(el);
   }
+  const settingsEnglishListEl = document.getElementById("settingsEnglishList");
+  function renderSettingsEnglish(){
+    const opts = [
+      { id: "list", on: showEnTitleList, label: "Show it in the hymn lists",     sub: "A blue English title under each hymn title in the list." },
+      { id: "read", on: showEnTitleRead, label: "Show it when I read a hymn",    sub: "A blue English title under the hymn title at the top of the reading screen." }
+    ];
+    settingsEnglishListEl.innerHTML = opts.map(o => `
+      <button class="more-row" data-entitle="${o.id}" type="button">
+        <span class="more-row-label">${o.label}<div class="more-row-sub">${o.sub}</div></span>
+        ${badge(o.on)}
+      </button>`).join("");
+  }
   const settingsLabelListEl = document.getElementById("settingsLabelList");
   function renderSettingsLabels(){
     const preview = [showVerseWord ? "VERSE" : "", showVerseNum ? "1" : ""].filter(Boolean).join(" ");
@@ -3717,6 +3755,7 @@ document.addEventListener("DOMContentLoaded", () => {
     renderSettingsFont();
     renderSettingsFontFamily();
     renderSettingsAwake();
+    renderSettingsEnglish();
   }
 
   function openSettings(){
@@ -3797,6 +3836,15 @@ document.addEventListener("DOMContentLoaded", () => {
     saveSettings({ fontFamily: fontFamilyId });
     renderSettingsFontFamily(); renderSettingsPreview();
   });
+  settingsEnglishListEl.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-entitle]");
+    if(!btn) return;
+    if(btn.dataset.entitle === "list"){ showEnTitleList = !showEnTitleList; saveSettings({ showEnTitleList }); }
+    else { showEnTitleRead = !showEnTitleRead; saveSettings({ showEnTitleRead }); }
+    renderSettingsEnglish();
+    if(typeof renderHymnsList === "function") renderHymnsList();
+    if(activeSong) songHeaderEn.textContent = showEnTitleRead ? englishTitleFor(activeSong) : "";
+  });
   settingsAwakeListEl.addEventListener("click", (e) => {
     if(!e.target.closest("[data-awake]")) return;
     keepAwake = !keepAwake;
@@ -3808,7 +3856,9 @@ document.addEventListener("DOMContentLoaded", () => {
     if(!confirm("Put all these settings back as they were at the start?")) return;
     fontSize = 17; currentTheme = "light"; lineHeight = DEFAULT_LH; fontFamilyId = "system";
     chorusMode = "once"; showVerseWord = showVerseNum = showChorusLabel = true; keepAwake = false;
-    saveSettings({ fontSize, theme: currentTheme, lineHeight, fontFamily: fontFamilyId, chorusMode, showVerseWord, showVerseNum, showChorusLabel, keepAwake });
+    showEnTitleList = showEnTitleRead = true;
+    saveSettings({ fontSize, theme: currentTheme, lineHeight, fontFamily: fontFamilyId, chorusMode, showVerseWord, showVerseNum, showChorusLabel, keepAwake, showEnTitleList, showEnTitleRead });
+    if(typeof renderHymnsList === "function") renderHymnsList();
     renderSettings();
     showToast("Settings put back as they were");
   });
